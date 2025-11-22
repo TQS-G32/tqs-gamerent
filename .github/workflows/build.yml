@@ -56,10 +56,4 @@ jobs:
           SONAR_HOST_URL: https://sonarcloud.io
           IGDB_CLIENT_ID: ${{ secrets.IGDB_CLIENT_ID }}
           IGDB_AUTH_TOKEN: ${{ secrets.IGDB_AUTH_TOKEN }}
-        run: |
-          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-            -Dsonar.projectKey=TQS-G32_tqs-gamerent \
-            -Dsonar.organization=filipenv1 \
-            -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
-
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=TQS-G32_tqs-gamerent
