@@ -1,3 +1,5 @@
+#!/bin/bash
+
 if [ ! "$(docker ps -a -q -f name=postgresdb)" ]; then
     docker run --name postgresdb \
       -e POSTGRES_USER=admin \
@@ -14,6 +16,10 @@ until docker exec postgresdb pg_isready -U admin > /dev/null 2>&1; do
   sleep 1
 done
 echo "PostgreSQL is ready!"
+
+set -a
+source .env
+set +a
 
 ./mvnw spring-boot:run
 
