@@ -32,7 +32,7 @@
         <sonar.junit.reportPaths>target/surefire-reports</sonar.junit.reportPaths>
         <sonar.tests>src/test/java</sonar.tests>
         <sonar.sources>src/main/java</sonar.sources>
-                <sonar.organization>filipenv1</sonar.organization>
+                <sonar.organization>tqs-g32</sonar.organization>
         </properties>
         <dependencies>
                 <dependency>
