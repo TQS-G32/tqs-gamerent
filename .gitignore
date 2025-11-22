@@ -1,2 +1,5 @@
+# vscode
+.vscode/
+
 frontend/node_modules/
 backend/src/main/java/gamerent/service/IgdbService.java
