@@ -3,6 +3,7 @@ package gamerent.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import gamerent.data.Item;
 import gamerent.data.ItemRepository;
+import gamerent.data.User;
 import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,11 +24,31 @@ public class ItemService {
         return itemRepository.findAll();
     }
 
-    public Item addItem(Item item) {
-        return itemRepository.save(item);
+    public List<Item> searchItems(String query, String category) {
+        if (query != null && !query.isEmpty() && category != null && !category.isEmpty()) {
+            return itemRepository.findByNameContainingIgnoreCaseAndCategoryIgnoreCase(query, category);
+        } else if (query != null && !query.isEmpty()) {
+            return itemRepository.findByNameContainingIgnoreCase(query);
+        } else if (category != null && !category.isEmpty()) {
+            return itemRepository.findByCategoryIgnoreCase(category);
+        }
+        return getAllItems();
+    }
+    
+    public List<Item> getItemsByOwner(Long ownerId) {
+        return itemRepository.findByOwnerId(ownerId);
     }
 
-    public void populateFromIGDB(int limit) {
+    public Item addItem(Item item, User owner) {
+        item.setOwner(owner);
+        return itemRepository.save(item);
+    }
+    
+    public Item getItem(Long id) {
+        return itemRepository.findById(id).orElseThrow(() -> new RuntimeException("Item not found"));
+    }
+
+    public void populateFromIGDB(int limit, User owner) {
         List<JsonNode> games = igdbService.getPopularGames(limit);
         List<Item> items = new ArrayList<>();
 
@@ -37,7 +58,8 @@ public class ItemService {
             double price = getRandomPrice();
             String imageUrl = getImageUrl(game);
 
-            Item item = new Item(name, description, price, imageUrl);
+            Item item = new Item(name, description, price, imageUrl, owner);
+            item.setCategory("Game");
             items.add(item);
         }
 

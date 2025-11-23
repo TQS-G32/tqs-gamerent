@@ -14,7 +14,7 @@ public class IgdbController {
     }
 
     @GetMapping("/search")
-    public String search(@RequestParam String q) {
-        return igdbService.searchGames(q);
+    public String search(@RequestParam String q, @RequestParam(required = false, defaultValue = "Game") String type) {
+        return igdbService.search(q, type);
     }
 }

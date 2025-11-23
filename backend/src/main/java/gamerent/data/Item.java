@@ -11,20 +11,28 @@ public class Item {
     @Column(length = 2048)
     private String description;
     private String category;
-    @Column(length = 2048)
+    
+    // Changed to TEXT (CLOB) to store large Base64 strings
+    @Column(columnDefinition = "TEXT")
     private String imageUrl;
+    
     private Double pricePerDay;
+
+    @ManyToOne
+    @JoinColumn(name = "owner_id")
+    private User owner;
 
     // Default constructor
     public Item() {
     }
 
     // Constructor for easier initialization
-    public Item(String name, String description, Double pricePerDay, String imageUrl) {
+    public Item(String name, String description, Double pricePerDay, String imageUrl, User owner) {
         this.name = name;
         this.description = description;
         this.pricePerDay = pricePerDay;
         this.imageUrl = imageUrl;
+        this.owner = owner;
     }
 
     public Long getId() {
@@ -62,5 +70,11 @@ public class Item {
     }
     public void setPricePerDay(Double pricePerDay) {
         this.pricePerDay = pricePerDay;
-    } 
+    }
+    public User getOwner() {
+        return owner;
+    }
+    public void setOwner(User owner) {
+        this.owner = owner;
+    }
 }

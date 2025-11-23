@@ -57,3 +57,7 @@ jobs:
           IGDB_CLIENT_ID: ${{ secrets.IGDB_CLIENT_ID }}
           IGDB_AUTH_TOKEN: ${{ secrets.IGDB_AUTH_TOKEN }}
         run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=TQS-G32_tqs-gamerent
+
+      - name: Build Docker Images
+        run: |
+          docker-compose build

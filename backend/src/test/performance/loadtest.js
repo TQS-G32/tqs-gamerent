@@ -6,21 +6,27 @@ const errorRate = new Rate('errors');
 
 export const options = {
   stages: [ 
-    // ramp up from 0 to 20 VUs over the next 5 seconds
-    { duration: '5s', target: 20 },
-    // run 20 VUs over the next 10 seconds
-    { duration: '30s', target: 20 },
+    { duration: '5s', target: 10 },
+    { duration: '10s', target: 50 },
     { duration: '5s', target: 0 },
   ],
   thresholds: {
-    http_req_duration: ['p(95)<500'],  // 95% of requests should be below 500ms
-    http_req_failed: ['rate<0.02'],    // less than 2% of requests should fail
-    checks: ['rate>0.99'],             // more than 99% of checks should pass
+    http_req_duration: ['p(95)<500'],
+    errors: ['rate<0.01'],
   },
 };
 
 const BASE_URL = 'http://localhost:8080';
 
 export default function () {
+  // Search items
+  const res = http.get(`${BASE_URL}/api/items/search?q=test`);
   
+  const result = check(res, {
+    'status is 200': (r) => r.status === 200,
+    'content type is json': (r) => r.headers['Content-Type'] && r.headers['Content-Type'].includes('application/json'),
+  });
+  
+  errorRate.add(!result);
+  sleep(1);
 }

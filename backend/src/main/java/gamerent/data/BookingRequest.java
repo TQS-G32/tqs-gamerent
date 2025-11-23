@@ -1,6 +1,7 @@
 package gamerent.data;
 
 import jakarta.persistence.*;
+import java.time.LocalDate;
 
 @Entity
 public class BookingRequest {
@@ -10,8 +11,15 @@ public class BookingRequest {
 
 	private Long itemId;
 	private Long userId;
-	private String startDate;
-	private String endDate;
+    
+    @Column(columnDefinition = "DATE")
+	private LocalDate startDate;
+    
+    @Column(columnDefinition = "DATE")
+	private LocalDate endDate;
+
+    @Enumerated(EnumType.STRING)
+    private BookingStatus status = BookingStatus.PENDING;
 
     public Long getId() {
         return id;
@@ -31,17 +39,22 @@ public class BookingRequest {
     public void setUserId(Long userId) {
         this.userId = userId;
     }
-    public String getStartDate() {
+    public LocalDate getStartDate() {
         return startDate;
     }
-    public void setStartDate(String startDate) {
+    public void setStartDate(LocalDate startDate) {
         this.startDate = startDate;
     }
-    public String getEndDate() {
+    public LocalDate getEndDate() {
         return endDate;
     }
-    public void setEndDate(String endDate) {
+    public void setEndDate(LocalDate endDate) {
         this.endDate = endDate;
     }
+    public BookingStatus getStatus() {
+        return status;
+    }
+    public void setStatus(BookingStatus status) {
+        this.status = status;
+    }
 }
-

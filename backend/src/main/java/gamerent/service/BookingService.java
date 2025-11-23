@@ -1,8 +1,84 @@
 package gamerent.service;
 
+import gamerent.data.BookingRequest;
+import gamerent.data.BookingRepository;
+import gamerent.data.BookingStatus;
+import gamerent.data.Item;
+import gamerent.data.ItemRepository;
 import org.springframework.stereotype.Service;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class BookingService {
+    
+    private final BookingRepository bookingRepository;
+    private final ItemRepository itemRepository;
 
+    public BookingService(BookingRepository bookingRepository, ItemRepository itemRepository) {
+        this.bookingRepository = bookingRepository;
+        this.itemRepository = itemRepository;
+    }
+
+    public BookingRequest createBooking(Long itemId, Long userId, LocalDate start, LocalDate end) {
+        // Check overlapping approved bookings
+        List<BookingRequest> existing = bookingRepository.findByItemIdAndStatus(itemId, BookingStatus.APPROVED);
+        for (BookingRequest b : existing) {
+            if (isOverlapping(start, end, b.getStartDate(), b.getEndDate())) {
+                throw new RuntimeException("Item is not available for these dates");
+            }
+        }
+        
+        BookingRequest request = new BookingRequest();
+        request.setItemId(itemId);
+        request.setUserId(userId);
+        request.setStartDate(start);
+        request.setEndDate(end);
+        request.setStatus(BookingStatus.PENDING);
+        
+        return bookingRepository.save(request);
+    }
+    
+    public BookingRequest updateStatus(Long bookingId, BookingStatus status, Long ownerId) {
+        BookingRequest booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new RuntimeException("Booking not found"));
+            
+        Item item = itemRepository.findById(booking.getItemId())
+            .orElseThrow(() -> new RuntimeException("Item not found"));
+            
+        if (!item.getOwner().getId().equals(ownerId)) {
+            throw new RuntimeException("Unauthorized: You are not the owner of this item");
+        }
+        
+        booking.setStatus(status);
+        return bookingRepository.save(booking);
+    }
+    
+    public List<BookingRequest> getUserBookings(Long userId) {
+        return bookingRepository.findByUserId(userId);
+    }
+    
+    // Get all bookings for items owned by ownerId
+    public List<BookingRequest> getOwnerBookings(Long ownerId) {
+        List<Item> ownerItems = itemRepository.findByOwnerId(ownerId);
+        List<Long> itemIds = ownerItems.stream().map(Item::getId).collect(Collectors.toList());
+        
+        // This is inefficient (N queries), better to use @Query in repo or filter in memory
+        // For MVP: fetch all bookings for each item
+        // Or better: add findByItemIdIn(List<Long> ids) to repo
+        // I'll do simple loop for now or implement custom query later.
+        // Let's use stream of all bookings for simplicity if data is small, OR
+        // Ideally add findByItemIdIn to BookingRepository.
+        // I'll assume I can't change Repo right now easily without another step. 
+        // I'll iterate items.
+        
+        return ownerItems.stream()
+            .flatMap(item -> bookingRepository.findByItemId(item.getId()).stream())
+            .collect(Collectors.toList());
+    }
+
+    private boolean isOverlapping(LocalDate start1, LocalDate end1, LocalDate start2, LocalDate end2) {
+        return !start1.isAfter(end2) && !start2.isAfter(end1);
+    }
 }

@@ -1,28 +1,50 @@
 package gamerent.boundary;
 
-import gamerent.data.BookingRepository;
+import gamerent.data.BookingRequest;
+import gamerent.data.BookingStatus;
+import gamerent.data.User;
+import gamerent.data.UserRepository;
+import gamerent.service.BookingService;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
-
-import gamerent.data.BookingRequest;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bookings")
 @CrossOrigin(origins = "*")
 public class BookingController {
-	private final BookingRepository bookingRepository;
+    private final BookingService bookingService;
+    private final UserRepository userRepository;
 
-	public BookingController(BookingRepository bookingRepository) {
-		this.bookingRepository = bookingRepository;
-	}
+    public BookingController(BookingService bookingService, UserRepository userRepository) {
+        this.bookingService = bookingService;
+        this.userRepository = userRepository;
+    }
 
-	@GetMapping
-	public List<BookingRequest> getAllBookings() {
-		return bookingRepository.findAll();
-	}
-
-	@PostMapping
-	public BookingRequest addBooking(@RequestBody BookingRequest booking) {
-		return bookingRepository.save(booking);
-	}
+    @PostMapping
+    public BookingRequest createBooking(@RequestBody BookingRequest booking) {
+        // Default to user ID 1
+        User user = userRepository.findById(1L)
+                .orElseThrow(() -> new RuntimeException("Default user not found"));
+        return bookingService.createBooking(booking.getItemId(), user.getId(), booking.getStartDate(), booking.getEndDate());
+    }
+    
+    @GetMapping("/my-bookings")
+    public List<BookingRequest> getMyBookings() {
+        // Default to user ID 1
+        return bookingService.getUserBookings(1L);
+    }
+    
+    @GetMapping("/requests")
+    public List<BookingRequest> getIncomingRequests() {
+        // Default to user ID 1
+        return bookingService.getOwnerBookings(1L);
+    }
+    
+    @PutMapping("/{id}/status")
+    public BookingRequest updateStatus(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        // Default to user ID 1
+        BookingStatus status = BookingStatus.valueOf(payload.get("status"));
+        return bookingService.updateStatus(id, status, 1L);
+    }
 }
