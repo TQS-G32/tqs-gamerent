@@ -33,18 +33,17 @@ public class PlaywrightIT {
 
     @BeforeAll
     static void launchBrowser() {
-        // playwright = Playwright.create();
-        // browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true));
+        playwright = Playwright.create();
+        browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true));
     }
 
     @AfterAll
     static void closeBrowser() {
-        // if (playwright != null) playwright.close();
+        if (playwright != null) playwright.close();
     }
 
     @BeforeEach
     void createContext() {
-        /*
         if (itemRepository.count() == 0) {
             User user = new User();
             user.setName("E2E User");
@@ -59,18 +58,16 @@ public class PlaywrightIT {
 
         context = browser.newContext();
         page = context.newPage();
-        */
     }
 
     @AfterEach
     void closeContext() {
-        // context.close();
+        context.close();
     }
 
     @Test
-    @Disabled("Requires running frontend. Skipped for backend unit tests.")
+    @Disabled("Frontend integration test - requires running frontend UI on port 5173")
     void testSearchAndBookFlow() {
-        /*
         String baseUrl = "http://localhost:" + port;
         
         HomePage homePage = new HomePage(page);
@@ -89,6 +86,5 @@ public class PlaywrightIT {
         itemPage.book("2025-12-01", "2025-12-05");
         
         assertTrue(itemPage.isBookingSuccessful());
-        */
     }
 }

@@ -21,9 +21,8 @@ import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// Changed from @WebMvcTest to @SpringBootTest to ensure full context load including Security
 @SpringBootTest
-@AutoConfigureMockMvc(addFilters = false) // Disable security filters for tests
+@AutoConfigureMockMvc(addFilters = false)
 class BookingControllerTest {
 
     @Autowired

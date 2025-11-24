@@ -64,15 +64,6 @@ public class BookingService {
         List<Item> ownerItems = itemRepository.findByOwnerId(ownerId);
         List<Long> itemIds = ownerItems.stream().map(Item::getId).collect(Collectors.toList());
         
-        // This is inefficient (N queries), better to use @Query in repo or filter in memory
-        // For MVP: fetch all bookings for each item
-        // Or better: add findByItemIdIn(List<Long> ids) to repo
-        // I'll do simple loop for now or implement custom query later.
-        // Let's use stream of all bookings for simplicity if data is small, OR
-        // Ideally add findByItemIdIn to BookingRepository.
-        // I'll assume I can't change Repo right now easily without another step. 
-        // I'll iterate items.
-        
         return ownerItems.stream()
             .flatMap(item -> bookingRepository.findByItemId(item.getId()).stream())
             .collect(Collectors.toList());

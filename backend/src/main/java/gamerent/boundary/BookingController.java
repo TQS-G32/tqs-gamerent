@@ -23,28 +23,26 @@ public class BookingController {
 
     @PostMapping
     public BookingRequest createBooking(@RequestBody BookingRequest booking) {
-        // Default to user ID 1
-        User user = userRepository.findById(1L)
-                .orElseThrow(() -> new RuntimeException("Default user not found"));
-        return bookingService.createBooking(booking.getItemId(), user.getId(), booking.getStartDate(), booking.getEndDate());
+        return bookingService.createBooking(booking.getItemId(), booking.getUserId(), booking.getStartDate(), booking.getEndDate());
     }
     
     @GetMapping("/my-bookings")
-    public List<BookingRequest> getMyBookings() {
-        // Default to user ID 1
-        return bookingService.getUserBookings(1L);
+    public List<BookingRequest> getMyBookings(@RequestParam(required = false) Long userId) {
+        Long resolvedUserId = userId != null ? userId : 1L;
+        return bookingService.getUserBookings(resolvedUserId);
     }
     
     @GetMapping("/requests")
-    public List<BookingRequest> getIncomingRequests() {
-        // Default to user ID 1
-        return bookingService.getOwnerBookings(1L);
+    public List<BookingRequest> getIncomingRequests(@RequestParam(required = false) Long ownerId) {
+        Long resolvedOwnerId = ownerId != null ? ownerId : 1L;
+        return bookingService.getOwnerBookings(resolvedOwnerId);
     }
     
     @PutMapping("/{id}/status")
-    public BookingRequest updateStatus(@PathVariable Long id, @RequestBody Map<String, String> payload) {
-        // Default to user ID 1
+    public BookingRequest updateStatus(@PathVariable Long id, @RequestBody Map<String, String> payload, @RequestParam(required = false) Long ownerId) {
         BookingStatus status = BookingStatus.valueOf(payload.get("status"));
-        return bookingService.updateStatus(id, status, 1L);
+        Long resolvedOwnerId = ownerId != null ? ownerId : 1L;
+        return bookingService.updateStatus(id, status, resolvedOwnerId);
     }
 }
+

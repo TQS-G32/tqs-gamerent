@@ -12,7 +12,6 @@ public class Item {
     private String description;
     private String category;
     
-    // Changed to TEXT (CLOB) to store large Base64 strings
     @Column(columnDefinition = "TEXT")
     private String imageUrl;
     
@@ -22,11 +21,9 @@ public class Item {
     @JoinColumn(name = "owner_id")
     private User owner;
 
-    // Default constructor
     public Item() {
     }
 
-    // Constructor for easier initialization
     public Item(String name, String description, Double pricePerDay, String imageUrl, User owner) {
         this.name = name;
         this.description = description;
