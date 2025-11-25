@@ -5,7 +5,7 @@ import { Rate } from 'k6/metrics';
 const errorRate = new Rate('errors');
 
 export const options = {
-  stages: [ 
+  stages: [
     { duration: '5s', target: 10 },
     { duration: '10s', target: 50 },
     { duration: '5s', target: 0 },
@@ -16,17 +16,17 @@ export const options = {
   },
 };
 
-const BASE_URL = 'http://localhost:8080';
+const BASE_URL = 'http://localhost:8081';
 
 export default function () {
   // Search items
   const res = http.get(`${BASE_URL}/api/items/search?q=test`);
-  
+
   const result = check(res, {
     'status is 200': (r) => r.status === 200,
     'content type is json': (r) => r.headers['Content-Type'] && r.headers['Content-Type'].includes('application/json'),
   });
-  
+
   errorRate.add(!result);
   sleep(1);
 }
