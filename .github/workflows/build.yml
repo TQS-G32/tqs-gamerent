@@ -14,21 +14,6 @@ jobs:
     name: Build and analyze
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_USER: admin
-          POSTGRES_PASSWORD: secret
-          POSTGRES_DB: gamerent_db
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,13 +27,6 @@ jobs:
           cache: maven
           cache-dependency-path: 'backend/pom.xml'
 
-      - name: Cache SonarQube packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-
       - name: Build and analyze
         working-directory: ./backend
         env:
@@ -57,7 +35,3 @@ jobs:
           IGDB_CLIENT_ID: ${{ secrets.IGDB_CLIENT_ID }}
           IGDB_AUTH_TOKEN: ${{ secrets.IGDB_AUTH_TOKEN }}
         run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=TQS-G32_tqs-gamerent
-
-      - name: Build Docker Images
-        run: |
-          docker compose build
