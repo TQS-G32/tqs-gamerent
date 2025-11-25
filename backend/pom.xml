@@ -200,7 +200,7 @@
                         </execution>
                     <execution>
                         <id>report</id>
-                        <phase>none</phase> <!-- Disabled for local test stability -->
+                        <phase>verify</phase>
                         <goals>
                             <goal>report</goal>
                         </goals>
