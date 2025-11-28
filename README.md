@@ -32,7 +32,6 @@ docker-compose up --build
 ```
 - Backend: http://localhost:8080
 - Frontend: http://localhost:3000
-- SonarQube: http://localhost:9000
 
 ### Running Locally (Dev)
 1. **Backend**:
