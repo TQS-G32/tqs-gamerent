@@ -4,9 +4,9 @@ GameRent is a peer-to-peer rental platform for video games and gaming hardware.
 
 ## Features
 - **Renter**: Search items, Book items (with date overlap protection), View Bookings.
-- **Owner**: List items, Manage Requests (Approve/Reject), Dashboard.
+- **User**: List items, Manage Requests (Approve/Reject), Dashboard.
 - **Reviews**: Rate items after booking.
-- **Auth**: Basic Auth with Role (RENTER/OWNER).
+- **Auth**: Basic Auth with Role (`USER`/`ADMIN`). Users can both rent and list items.
 
 ## Tech Stack
 - **Backend**: Spring Boot 3, Java 17/21, Spring Data JPA, Spring Security.
@@ -54,3 +54,20 @@ docker-compose up --build
 
 ## CI/CD
 Configured in `.github/workflows/build.yml` to run tests and SonarQube analysis on push.
+
+## Default users (for development)
+
+The application creates default users on first startup. Their passwords are stored hashed in the database; use the plaintext credentials below to log in during development:
+
+- Demo user (lists items):
+   - email: `demo@gamerent.com`
+   - password: `password`
+   - role: `USER`
+
+- Admin:
+   - email: `admin@gamerent.com`
+   - password: `adminpass`
+   - role: `ADMIN`
+
+Passwords are hashed using BCrypt with appropriate salt before being stored in the PostgreSQL database.
+

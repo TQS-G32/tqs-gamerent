@@ -5,6 +5,7 @@ import gamerent.data.User;
 import gamerent.data.UserRepository;
 import gamerent.service.ItemService;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 
 @RestController
@@ -30,17 +31,26 @@ public class ItemController {
     }
 
     @PostMapping
-    public Item addItem(@RequestBody Item item) {
-        // Default to user ID 1 (Demo User)
-        User owner = userRepository.findById(1L)
-                .orElseThrow(() -> new RuntimeException("Default user not found. Ensure DataInitializer has run."));
+    public Item addItem(@RequestBody Item item, HttpServletRequest request) {
+        // Resolve current user from session if present
+        Long ownerId = 1L;
+        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute("userId") : null;
+        if (uid instanceof Long) ownerId = (Long) uid;
+        else if (uid instanceof Integer) ownerId = ((Integer) uid).longValue();
+
+        User owner = userRepository.findById(ownerId)
+                .orElseThrow(() -> new RuntimeException("Owner not found. Ensure DataInitializer has run."));
         return itemService.addItem(item, owner);
     }
     
     @GetMapping("/my-items")
-    public List<Item> getMyItems() {
-        // Default to user ID 1
-        return itemService.getItemsByOwner(1L);
+    public List<Item> getMyItems(HttpServletRequest request) {
+        Long ownerId = 1L;
+        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute("userId") : null;
+        if (uid instanceof Long) ownerId = (Long) uid;
+        else if (uid instanceof Integer) ownerId = ((Integer) uid).longValue();
+
+        return itemService.getItemsByOwner(ownerId);
     }
     
     @GetMapping("/{id}")

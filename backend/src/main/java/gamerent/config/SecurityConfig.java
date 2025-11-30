@@ -15,7 +15,8 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll()
+                .requestMatchers("/api/auth/**", "/", "/index.html", "/static/**", "/assets/**", "/favicon.ico", "/api/igdb/**").permitAll()
+                .anyRequest().authenticated()
             );
         return http.build();
     }

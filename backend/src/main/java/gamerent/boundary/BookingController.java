@@ -8,6 +8,7 @@ import gamerent.service.BookingService;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/bookings")
@@ -22,26 +23,45 @@ public class BookingController {
     }
 
     @PostMapping
-    public BookingRequest createBooking(@RequestBody BookingRequest booking) {
-        return bookingService.createBooking(booking.getItemId(), booking.getUserId(), booking.getStartDate(), booking.getEndDate());
+    public BookingRequest createBooking(@RequestBody BookingRequest booking, HttpServletRequest request) {
+        // Resolve current user from session if present
+        Long userId = booking.getUserId();
+        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute("userId") : null;
+        if (uid instanceof Long) userId = (Long) uid;
+        else if (uid instanceof Integer) userId = ((Integer) uid).longValue();
+        if (userId == null) userId = booking.getUserId();
+
+        return bookingService.createBooking(booking.getItemId(), userId, booking.getStartDate(), booking.getEndDate());
     }
     
     @GetMapping("/my-bookings")
-    public List<BookingRequest> getMyBookings(@RequestParam(required = false) Long userId) {
-        Long resolvedUserId = userId != null ? userId : 1L;
+    public List<BookingRequest> getMyBookings(@RequestParam(required = false) Long userId, HttpServletRequest request) {
+        Long resolvedUserId = userId;
+        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute("userId") : null;
+        if (uid instanceof Long) resolvedUserId = (Long) uid;
+        else if (uid instanceof Integer) resolvedUserId = ((Integer) uid).longValue();
+        if (resolvedUserId == null) resolvedUserId = 1L;
         return bookingService.getUserBookings(resolvedUserId);
     }
     
     @GetMapping("/requests")
-    public List<BookingRequest> getIncomingRequests(@RequestParam(required = false) Long ownerId) {
-        Long resolvedOwnerId = ownerId != null ? ownerId : 1L;
+    public List<BookingRequest> getIncomingRequests(@RequestParam(required = false) Long ownerId, HttpServletRequest request) {
+        Long resolvedOwnerId = ownerId;
+        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute("userId") : null;
+        if (uid instanceof Long) resolvedOwnerId = (Long) uid;
+        else if (uid instanceof Integer) resolvedOwnerId = ((Integer) uid).longValue();
+        if (resolvedOwnerId == null) resolvedOwnerId = 1L;
         return bookingService.getOwnerBookings(resolvedOwnerId);
     }
     
     @PutMapping("/{id}/status")
-    public BookingRequest updateStatus(@PathVariable Long id, @RequestBody Map<String, String> payload, @RequestParam(required = false) Long ownerId) {
+    public BookingRequest updateStatus(@PathVariable Long id, @RequestBody Map<String, String> payload, @RequestParam(required = false) Long ownerId, HttpServletRequest request) {
         BookingStatus status = BookingStatus.valueOf(payload.get("status"));
-        Long resolvedOwnerId = ownerId != null ? ownerId : 1L;
+        Long resolvedOwnerId = ownerId;
+        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute("userId") : null;
+        if (uid instanceof Long) resolvedOwnerId = (Long) uid;
+        else if (uid instanceof Integer) resolvedOwnerId = ((Integer) uid).longValue();
+        if (resolvedOwnerId == null) resolvedOwnerId = 1L;
         return bookingService.updateStatus(id, status, resolvedOwnerId);
     }
 }

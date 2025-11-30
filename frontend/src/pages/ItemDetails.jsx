@@ -10,7 +10,7 @@ export default function ItemDetails() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch(`/api/items/${id}`)
+    fetch(`/api/items/${id}`, { credentials: 'include' })
       .then((res) => res.json())
       .then((data) => setItem(data))
       .catch(err => console.error(err));
@@ -21,6 +21,7 @@ export default function ItemDetails() {
     
     fetch("/api/bookings", {
       method: "POST",
+      credentials: 'include',
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ itemId: id, startDate, endDate }),
     })
