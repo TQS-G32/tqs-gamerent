@@ -22,7 +22,7 @@ services:
     ports:
       - "8081:8080"
     env_file:
-      - ./backend/.env
+      - ./.env
     environment:
       # Database configuration (internal Docker DNS)
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/gamerent_db
