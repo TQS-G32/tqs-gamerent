@@ -14,6 +14,7 @@ import jakarta.servlet.http.HttpServletRequest;
 @RequestMapping("/api/bookings")
 @CrossOrigin(origins = "*")
 public class BookingController {
+    private static final String USER_ID_KEY = "userId";
     private final BookingService bookingService;
     private final UserRepository userRepository;
 
@@ -26,7 +27,7 @@ public class BookingController {
     public BookingRequest createBooking(@RequestBody BookingRequest booking, HttpServletRequest request) {
         // Resolve current user from session if present
         Long userId = booking.getUserId();
-        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute("userId") : null;
+        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute(USER_ID_KEY) : null;
         if (uid instanceof Long) userId = (Long) uid;
         else if (uid instanceof Integer) userId = ((Integer) uid).longValue();
         if (userId == null) userId = booking.getUserId();
@@ -37,7 +38,7 @@ public class BookingController {
     @GetMapping("/my-bookings")
     public List<BookingRequest> getMyBookings(@RequestParam(required = false) Long userId, HttpServletRequest request) {
         Long resolvedUserId = userId;
-        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute("userId") : null;
+        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute(USER_ID_KEY) : null;
         if (uid instanceof Long) resolvedUserId = (Long) uid;
         else if (uid instanceof Integer) resolvedUserId = ((Integer) uid).longValue();
         if (resolvedUserId == null) resolvedUserId = 1L;
@@ -47,7 +48,7 @@ public class BookingController {
     @GetMapping("/requests")
     public List<BookingRequest> getIncomingRequests(@RequestParam(required = false) Long ownerId, HttpServletRequest request) {
         Long resolvedOwnerId = ownerId;
-        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute("userId") : null;
+        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute(USER_ID_KEY) : null;
         if (uid instanceof Long) resolvedOwnerId = (Long) uid;
         else if (uid instanceof Integer) resolvedOwnerId = ((Integer) uid).longValue();
         if (resolvedOwnerId == null) resolvedOwnerId = 1L;
@@ -58,7 +59,7 @@ public class BookingController {
     public BookingRequest updateStatus(@PathVariable Long id, @RequestBody Map<String, String> payload, @RequestParam(required = false) Long ownerId, HttpServletRequest request) {
         BookingStatus status = BookingStatus.valueOf(payload.get("status"));
         Long resolvedOwnerId = ownerId;
-        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute("userId") : null;
+        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute(USER_ID_KEY) : null;
         if (uid instanceof Long) resolvedOwnerId = (Long) uid;
         else if (uid instanceof Integer) resolvedOwnerId = ((Integer) uid).longValue();
         if (resolvedOwnerId == null) resolvedOwnerId = 1L;

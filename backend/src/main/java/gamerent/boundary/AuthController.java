@@ -21,11 +21,20 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+    private static final String EMAIL_KEY = "email";
+    private static final String USER_ID_KEY = "userId";
+    private static final String USER_EMAIL_KEY = "userEmail";
+    private static final String USER_ROLE_KEY = "userRole";
+    private static final String NAME_KEY = "name";
+    private static final String ROLE_KEY = "role";
+    private static final String ID_KEY = "id";
+    private static final String NOT_AUTHENTICATED_MSG = "Not authenticated";
+
     @Autowired
     private UserService userService;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody User user) {
+    public ResponseEntity<Object> register(@RequestBody User user) {
         if (userService.findByEmail(user.getEmail()).isPresent()) {
             return ResponseEntity.badRequest().body("Email already in use");
         }
@@ -34,17 +43,17 @@ public class AuthController {
 
         // Build response without password
         Map<String, Object> response = new HashMap<>();
-        response.put("id", saved.getId());
-        response.put("email", saved.getEmail());
-        response.put("role", saved.getRole());
-        response.put("name", saved.getName());
+        response.put(ID_KEY, saved.getId());
+        response.put(EMAIL_KEY, saved.getEmail());
+        response.put(ROLE_KEY, saved.getRole());
+        response.put(NAME_KEY, saved.getName());
 
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> loginData, HttpServletRequest request) {
-        String email = loginData.get("email");
+    public ResponseEntity<Object> login(@RequestBody Map<String, String> loginData, HttpServletRequest request) {
+        String email = loginData.get(EMAIL_KEY);
         String password = loginData.get("password");
         Optional<User> userOpt = userService.findByEmail(email);
         if (userOpt.isEmpty() || !userService.checkPassword(userOpt.get(), password)) {
@@ -61,41 +70,41 @@ public class AuthController {
         HttpSession session = request.getSession(true);
         session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, securityContext);
         // Store useful info in session for controller access
-        session.setAttribute("userId", user.getId());
-        session.setAttribute("userEmail", user.getEmail());
-        session.setAttribute("userRole", user.getRole());
+        session.setAttribute(USER_ID_KEY, user.getId());
+        session.setAttribute(USER_EMAIL_KEY, user.getEmail());
+        session.setAttribute(USER_ROLE_KEY, user.getRole());
         Map<String, Object> response = new HashMap<>();
-        response.put("id", user.getId());
-        response.put("email", user.getEmail());
-        response.put("role", user.getRole());
-        response.put("name", user.getName());
+        response.put(ID_KEY, user.getId());
+        response.put(EMAIL_KEY, user.getEmail());
+        response.put(ROLE_KEY, user.getRole());
+        response.put(NAME_KEY, user.getName());
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> me(HttpServletRequest request) {
+    public ResponseEntity<Object> me(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
-        if (session == null) return ResponseEntity.status(401).body("Not authenticated");
-        Object uid = session.getAttribute("userId");
-        if (uid == null) return ResponseEntity.status(401).body("Not authenticated");
+        if (session == null) return ResponseEntity.status(401).body(NOT_AUTHENTICATED_MSG);
+        Object uid = session.getAttribute(USER_ID_KEY);
+        if (uid == null) return ResponseEntity.status(401).body(NOT_AUTHENTICATED_MSG);
 
         Long userId = null;
         if (uid instanceof Long) userId = (Long) uid;
         else if (uid instanceof Integer) userId = ((Integer) uid).longValue();
 
-        User user = userService.findByEmail((String) session.getAttribute("userEmail")).orElse(null);
-        if (user == null) return ResponseEntity.status(401).body("Not authenticated");
+        User user = userService.findByEmail((String) session.getAttribute(USER_EMAIL_KEY)).orElse(null);
+        if (user == null) return ResponseEntity.status(401).body(NOT_AUTHENTICATED_MSG);
 
         Map<String, Object> response = new HashMap<>();
-        response.put("id", user.getId());
-        response.put("email", user.getEmail());
-        response.put("role", user.getRole());
-        response.put("name", user.getName());
+        response.put(ID_KEY, user.getId());
+        response.put(EMAIL_KEY, user.getEmail());
+        response.put(ROLE_KEY, user.getRole());
+        response.put(NAME_KEY, user.getName());
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletRequest request) {
+    public ResponseEntity<Object> logout(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session != null) {
             session.invalidate();
