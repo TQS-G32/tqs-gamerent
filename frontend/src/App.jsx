@@ -66,6 +66,28 @@ export default function App() {
     else window.localStorage.removeItem('user');
   }, [user]);
 
+  useEffect(() => {
+    // Check if there's an active session with the backend on app load
+    const checkSession = async () => {
+      try {
+        const res = await fetch('/api/auth/me', {
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const userData = await res.json();
+          setUser(userData);
+          window.localStorage.setItem('user', JSON.stringify(userData));
+        } else {
+          window.localStorage.removeItem('user');
+        }
+      } catch (err) {
+        console.error('Session check failed:', err);
+        window.localStorage.removeItem('user');
+      }
+    };
+    checkSession();
+  }, []);
+
   const handleAuth = (u) => {
     setUser(u);
   };
