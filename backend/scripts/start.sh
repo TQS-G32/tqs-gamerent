@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Ensure we are in the backend directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$(dirname "$SCRIPT_DIR")"
+cd "$BACKEND_DIR"
+
 if [ ! "$(docker ps -a -q -f name=postgresdb)" ]; then
     docker run --name postgresdb \
       -e POSTGRES_USER=admin \

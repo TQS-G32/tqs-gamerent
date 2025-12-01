@@ -11,6 +11,16 @@ export default function Bookings() {
   const currentUser = userJson ? JSON.parse(userJson) : null;
   const [isOwner, setIsOwner] = useState(false);
 
+  if (!currentUser) {
+    return (
+      <div className="container" style={{textAlign: 'center', padding: '80px 20px'}}>
+        <h2 style={{marginBottom: '16px'}}>Please Log In</h2>
+        <p style={{color: '#666', marginBottom: '24px'}}>You need to be logged in to view your dashboard, manage listings, and check your rentals.</p>
+        <Link to="/auth" className="btn btn-primary">Go to Login</Link>
+      </div>
+    );
+  }
+
   useEffect(() => {
     // Fetch My Rentals (Buying)
     fetch('/api/bookings/my-bookings', { credentials: 'include' })

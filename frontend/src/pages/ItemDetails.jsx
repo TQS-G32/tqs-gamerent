@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 
 export default function ItemDetails() {
   const { id } = useParams();
@@ -7,6 +7,7 @@ export default function ItemDetails() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [success, setSuccess] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -19,6 +20,12 @@ export default function ItemDetails() {
   function handleBook(e) {
     e.preventDefault();
     
+    const user = window.localStorage.getItem('user');
+    if (!user) {
+        setShowLoginPrompt(true);
+        return;
+    }
+
     fetch("/api/bookings", {
       method: "POST",
       credentials: 'include',
@@ -26,6 +33,10 @@ export default function ItemDetails() {
       body: JSON.stringify({ itemId: id, startDate, endDate }),
     })
       .then((res) => {
+          if (res.status === 401 || res.status === 403) {
+              setShowLoginPrompt(true);
+              throw new Error("Unauthorized");
+          }
           if (!res.ok) throw new Error("Booking failed");
           return res.json();
       })
@@ -33,7 +44,11 @@ export default function ItemDetails() {
         setSuccess(true);
         setTimeout(() => navigate("/bookings"), 1200);
       })
-      .catch(err => alert(err.message));
+      .catch(err => {
+          if (err.message !== "Unauthorized") {
+              console.error(err);
+          }
+      });
   }
 
   if (!item) return <div className="container" style={{paddingTop: '40px'}}>Loading...</div>;
@@ -83,6 +98,21 @@ export default function ItemDetails() {
                     <button type="submit" className="btn btn-primary" style={{width: '100%'}}>Request Booking</button>
                 </form>
                 {success && <p style={{color: 'green', marginTop: '10px', textAlign: 'center'}}>Booking sent!</p>}
+                
+                {showLoginPrompt && (
+                    <div style={{
+                        marginTop: '16px', 
+                        padding: '12px', 
+                        background: '#fff3cd', 
+                        border: '1px solid #ffeeba', 
+                        borderRadius: '4px',
+                        color: '#856404',
+                        fontSize: '0.9rem'
+                    }}>
+                        <strong>Login Required</strong><br/>
+                        You must be logged in to book items. <Link to="/auth" style={{color: '#856404', textDecoration: 'underline'}}>Log in here</Link>.
+                    </div>
+                )}
             </div>
 
             <div className="sidebar-card" style={{display: 'flex', alignItems: 'center', gap: '12px'}}>

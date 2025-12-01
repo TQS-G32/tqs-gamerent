@@ -2,9 +2,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-FRONTEND_DIR="$REPO_ROOT/frontend"
-BACKEND_STATIC_DIR="$REPO_ROOT/backend/src/main/resources/static"
+BACKEND_DIR="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(dirname "$BACKEND_DIR")"
+FRONTEND_DIR="$PROJECT_ROOT/frontend"
+BACKEND_STATIC_DIR="$BACKEND_DIR/src/main/resources/static"
 
 if [ ! -d "$FRONTEND_DIR" ]; then
   echo "Frontend directory not found: $FRONTEND_DIR" >&2
@@ -14,6 +15,7 @@ fi
 cd "$FRONTEND_DIR"
 
 echo "Building frontend..."
+npm install
 npm run build
 
 BUILD_DIR="$FRONTEND_DIR/dist"
