@@ -57,6 +57,7 @@ class BookingServiceTest {
     
     @Test
     void createBooking_ShouldCreateWhenNoConflict() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
         when(bookingRepository.findByItemIdAndStatus(1L, BookingStatus.APPROVED))
             .thenReturn(List.of());
         when(bookingRepository.save(any(BookingRequest.class)))
@@ -75,6 +76,7 @@ class BookingServiceTest {
     
     @Test
     void createBooking_ShouldThrowWhenOverlapping() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
         BookingRequest existing = new BookingRequest();
         existing.setStartDate(LocalDate.of(2025, 12, 2));
         existing.setEndDate(LocalDate.of(2025, 12, 4));
@@ -89,6 +91,23 @@ class BookingServiceTest {
                 LocalDate.of(2025, 12, 5)
             ),
             "Should throw exception for overlapping dates"
+        );
+        
+        verify(bookingRepository, never()).save(any());
+    }
+
+    @Test
+    void createBooking_ShouldThrowWhenUserIsOwner() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+        
+        // item owner id is 1L (set in setUp)
+        assertThrows(RuntimeException.class, () ->
+            bookingService.createBooking(
+                1L, 1L, 
+                LocalDate.of(2025, 12, 1),
+                LocalDate.of(2025, 12, 5)
+            ),
+            "Should throw exception when user rents their own item"
         );
         
         verify(bookingRepository, never()).save(any());
