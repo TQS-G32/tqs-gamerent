@@ -7,29 +7,45 @@ export default function Bookings() {
   const [listings, setListings] = useState([]); // My Items
   const [activeTab, setActiveTab] = useState('listings'); // 'rentals', 'listings', 'requests'
   
-  // Hardcode user role for demo purposes, assuming default user is OWNER
-  const isOwner = true;
+  const userJson = window.localStorage.getItem('user');
+  const currentUser = userJson ? JSON.parse(userJson) : null;
+  const [isOwner, setIsOwner] = useState(false);
+
+  if (!currentUser) {
+    return (
+      <div className="container" style={{textAlign: 'center', padding: '80px 20px'}}>
+        <h2 style={{marginBottom: '16px'}}>Please Log In</h2>
+        <p style={{color: '#666', marginBottom: '24px'}}>You need to be logged in to view your dashboard, manage listings, and check your rentals.</p>
+        <Link to="/auth" className="btn btn-primary">Go to Login</Link>
+      </div>
+    );
+  }
 
   useEffect(() => {
     // Fetch My Rentals (Buying)
-    fetch('/api/bookings/my-bookings')
+    fetch('/api/bookings/my-bookings', { credentials: 'include' })
       .then(res => res.json())
       .then(data => setBookings(data))
       .catch(err => console.error(err));
 
     // Fetch My Listings
-    fetch('/api/items/my-items')
+    fetch('/api/items/my-items', { credentials: 'include' })
       .then(res => res.json())
-      .then(data => setListings(data))
-      .catch(err => console.error(err));
+      .then(data => {
+        setListings(data);
+        // If the current user has any listings, treat them as an owner for requests
+        const ownerFlag = Array.isArray(data) && data.length > 0;
+        setIsOwner(ownerFlag || (currentUser && currentUser.role === 'ADMIN'));
 
-    // Fetch Requests (Selling)
-    if (isOwner) {
-      fetch('/api/bookings/requests')
-        .then(res => res.json())
-        .then(data => setRequests(data))
-        .catch(err => console.error(err));
-    }
+        // If owner, fetch incoming booking requests
+        if (ownerFlag || (currentUser && currentUser.role === 'ADMIN')) {
+          fetch('/api/bookings/requests', { credentials: 'include' })
+            .then(res => res.json())
+            .then(reqs => setRequests(reqs))
+            .catch(err => console.error(err));
+        }
+      })
+      .catch(err => console.error(err));
   }, []);
 
   const handleStatusUpdate = (id, status) => {

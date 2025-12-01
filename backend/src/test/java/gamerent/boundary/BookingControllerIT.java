@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -36,10 +37,9 @@ class BookingControllerIT {
     
     @BeforeEach
     void setUp() {
-        // Clear repositories
-        bookingRepository.deleteAll();
-        itemRepository.deleteAll();
-        userRepository.deleteAll();
+        // Clean up test data if it exists from previous runs
+        cleanupUser("owner@test.com");
+        cleanupUser("renter@test.com");
         
         // Create owner
         owner = new User();
@@ -65,6 +65,24 @@ class BookingControllerIT {
         item.setPricePerDay(20.0);
         item.setOwner(owner);
         item = itemRepository.save(item);
+    }
+
+    private void cleanupUser(String email) {
+        userRepository.findByEmail(email).ifPresent(u -> {
+            // Delete items owned by user and their bookings
+            List<Item> items = itemRepository.findByOwnerId(u.getId());
+            for (Item i : items) {
+                List<BookingRequest> bookings = bookingRepository.findByItemId(i.getId());
+                bookingRepository.deleteAll(bookings);
+                itemRepository.delete(i);
+            }
+            
+            // Delete bookings made by user
+            List<BookingRequest> userBookings = bookingRepository.findByUserId(u.getId());
+            bookingRepository.deleteAll(userBookings);
+            
+            userRepository.delete(u);
+        });
     }
     
     @Test

@@ -12,7 +12,7 @@ services:
     networks:
       - gamerent-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin"]
+      test: ["CMD-SHELL", "pg_isready -U admin -d gamerent_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -21,6 +21,8 @@ services:
     build: ./backend
     ports:
       - "8081:8080"
+    env_file:
+      - ./.env
     environment:
       # Database configuration (internal Docker DNS)
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/gamerent_db
@@ -30,10 +32,6 @@ services:
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SERVER_PORT: 8080
-      
-      # External API credentials (from backend/.env)
-      IGDB_CLIENT_ID: ${IGDB_CLIENT_ID}
-      IGDB_AUTH_TOKEN: ${IGDB_AUTH_TOKEN}
     depends_on:
       db:
         condition: service_healthy

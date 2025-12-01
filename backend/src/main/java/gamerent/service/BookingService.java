@@ -22,6 +22,13 @@ public class BookingService {
     }
 
     public BookingRequest createBooking(Long itemId, Long userId, LocalDate start, LocalDate end) {
+        Item item = itemRepository.findById(itemId)
+            .orElseThrow(() -> new RuntimeException("Item not found"));
+
+        if (item.getOwner().getId().equals(userId)) {
+            throw new RuntimeException("You cannot rent your own item");
+        }
+
         // Check overlapping approved bookings
         List<BookingRequest> existing = bookingRepository.findByItemIdAndStatus(itemId, BookingStatus.APPROVED);
         for (BookingRequest b : existing) {
