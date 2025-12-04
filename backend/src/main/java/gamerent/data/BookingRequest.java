@@ -18,6 +18,8 @@ public class BookingRequest {
     @Column(columnDefinition = "DATE")
 	private LocalDate endDate;
 
+    private Double totalPrice;
+
     @Enumerated(EnumType.STRING)
     private BookingStatus status = BookingStatus.PENDING;
 
@@ -50,6 +52,12 @@ public class BookingRequest {
     }
     public void setEndDate(LocalDate endDate) {
         this.endDate = endDate;
+    }
+    public Double getTotalPrice() {
+        return totalPrice;
+    }
+    public void setTotalPrice(Double totalPrice) {
+        this.totalPrice = totalPrice;
     }
     public BookingStatus getStatus() {
         return status;

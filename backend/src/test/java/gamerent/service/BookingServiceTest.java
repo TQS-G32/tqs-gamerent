@@ -61,7 +61,7 @@ class BookingServiceTest {
         when(bookingRepository.findByItemIdAndStatus(1L, BookingStatus.APPROVED))
             .thenReturn(List.of());
         when(bookingRepository.save(any(BookingRequest.class)))
-            .thenReturn(booking);
+            .thenAnswer(invocation -> invocation.getArgument(0));
         
         BookingRequest result = bookingService.createBooking(
             1L, 2L, 
@@ -71,6 +71,9 @@ class BookingServiceTest {
         
         assertNotNull(result);
         assertEquals(BookingStatus.PENDING, result.getStatus());
+        long days = java.time.temporal.ChronoUnit.DAYS.between(
+            LocalDate.of(2025,12,1), LocalDate.of(2025,12,5)) + 1;
+        assertEquals(15.0 * (double) days, result.getTotalPrice());
         verify(bookingRepository, times(1)).save(any(BookingRequest.class));
     }
     
@@ -93,6 +96,22 @@ class BookingServiceTest {
             "Should throw exception for overlapping dates"
         );
         
+        verify(bookingRepository, never()).save(any());
+    }
+
+    @Test
+    void createBooking_ShouldValidateStartBeforeEnd() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+
+        assertThrows(RuntimeException.class, () ->
+            bookingService.createBooking(
+                1L, 2L,
+                LocalDate.of(2025, 12, 5),
+                LocalDate.of(2025, 12, 1)
+            ),
+            "Should throw exception when start is after end"
+        );
+
         verify(bookingRepository, never()).save(any());
     }
 

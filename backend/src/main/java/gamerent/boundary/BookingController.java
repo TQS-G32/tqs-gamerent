@@ -35,6 +35,14 @@ public class BookingController {
         return bookingService.createBooking(booking.getItemId(), userId, booking.getStartDate(), booking.getEndDate());
     }
     
+    @GetMapping
+    public List<BookingRequest> getBookingsByItem(@RequestParam(required = false) Long itemId) {
+        if (itemId != null && itemId > 0) {
+            return bookingService.getItemBookings(itemId);
+        }
+        return List.of();
+    }
+    
     @GetMapping("/my-bookings")
     public List<BookingRequest> getMyBookings(@RequestParam(required = false) Long userId, HttpServletRequest request) {
         Long resolvedUserId = userId;

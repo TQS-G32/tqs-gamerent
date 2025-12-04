@@ -5,6 +5,7 @@ export default function Bookings() {
   const [bookings, setBookings] = useState([]); // My Rentals
   const [requests, setRequests] = useState([]); // Incoming Requests
   const [listings, setListings] = useState([]); // My Items
+  const [itemsMap, setItemsMap] = useState({}); // Map of itemId -> Item data
   const [activeTab, setActiveTab] = useState('listings'); // 'rentals', 'listings', 'requests'
   
   const userJson = window.localStorage.getItem('user');
@@ -14,7 +15,7 @@ export default function Bookings() {
   if (!currentUser) {
     return (
       <div className="container" style={{textAlign: 'center', padding: '80px 20px'}}>
-        <h2 style={{marginBottom: '16px'}}>Please Log In</h2>
+        <h2 style={{marginBottom: '16px'}}>🔐 Please Log In</h2>
         <p style={{color: '#666', marginBottom: '24px'}}>You need to be logged in to view your dashboard, manage listings, and check your rentals.</p>
         <Link to="/auth" className="btn btn-primary">Go to Login</Link>
       </div>
@@ -48,11 +49,30 @@ export default function Bookings() {
       .catch(err => console.error(err));
   }, []);
 
+  // Fetch item details for all bookings/requests to display with booking info
+  useEffect(() => {
+    const itemIds = new Set();
+    bookings.forEach(b => itemIds.add(b.itemId));
+    requests.forEach(r => itemIds.add(r.itemId));
+
+    itemIds.forEach(itemId => {
+      if (!itemsMap[itemId]) {
+        fetch(`/api/items/${itemId}`, { credentials: 'include' })
+          .then(res => res.json())
+          .then(item => {
+            setItemsMap(prev => ({ ...prev, [itemId]: item }));
+          })
+          .catch(err => console.error(err));
+      }
+    });
+  }, [bookings, requests]);
+
   const handleStatusUpdate = (id, status) => {
     fetch(`/api/bookings/${id}/status`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status })
+      body: JSON.stringify({ status }),
+      credentials: 'include'
     })
     .then(res => res.json())
     .then(updated => {
@@ -66,38 +86,57 @@ export default function Bookings() {
           'APPROVED': '#27ae60',
           'REJECTED': '#c0392b'
       };
-      return <span style={{color: colors[status] || '#333', fontWeight: 600, fontSize: '0.85rem', textTransform: 'uppercase'}}>{status}</span>;
+      const icons = {
+        'PENDING': '⏳',
+        'APPROVED': '✓',
+        'REJECTED': '✕'
+      };
+      return <span style={{color: colors[status] || '#333', fontWeight: 600, fontSize: '0.85rem', textTransform: 'uppercase'}}>{icons[status]} {status}</span>;
   }
+
+  const getOwnerInitial = (item) => {
+    return item && item.owner ? item.owner.name.charAt(0).toUpperCase() : 'U';
+  };
 
   return (
     <div className="container">
-      <h2 style={{marginBottom: '24px'}}>My Dashboard</h2>
+      <h2 style={{marginBottom: '24px'}}>📊 My Dashboard</h2>
       
       <div className="tabs">
           <div className={`tab ${activeTab === 'listings' ? 'active' : ''}`} onClick={() => setActiveTab('listings')}>
-            My Listings
+            📦 My Listings ({listings.length})
           </div>
           <div className={`tab ${activeTab === 'rentals' ? 'active' : ''}`} onClick={() => setActiveTab('rentals')}>
-            My Rentals (Buying)
+            🛒 My Rentals ({bookings.length})
           </div>
-          <div className={`tab ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
-            Requests ({requests.filter(r => r.status === 'PENDING').length})
-          </div>
+          {isOwner && (
+            <div className={`tab ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
+              📬 Requests ({requests.filter(r => r.status === 'PENDING').length})
+            </div>
+          )}
       </div>
 
       {/* My Listings Tab */}
       {activeTab === 'listings' && (
         <div>
-             {listings.length === 0 ? <div style={{textAlign: 'center', padding: '40px', color: '#999'}}>You haven't listed any items yet.</div> : (
+             {listings.length === 0 ? (
+               <div style={{textAlign: 'center', padding: '60px 20px', color: '#999'}}>
+                 <div style={{fontSize: '3rem', marginBottom: '12px'}}>📭</div>
+                 <h3>No listings yet</h3>
+                 <p>Start renting out your gaming gear!</p>
+                 <Link to="/post-item" className="btn btn-primary" style={{marginTop: '16px'}}>Create your first listing</Link>
+               </div>
+             ) : (
                 <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
                     {listings.map(item => (
                         <div key={item.id} className="sidebar-card" style={{display: 'flex', gap: '16px', alignItems: 'center'}}>
-                             <div style={{width: '80px', height: '80px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0}}>
+                             <div style={{width: '80px', height: '80px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: '#eee'}}>
                                 <img src={item.imageUrl || "https://via.placeholder.com/150"} alt={item.name} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
                              </div>
                              <div style={{flex: 1}}>
                                 <div style={{fontWeight: 600, fontSize: '1.1rem'}}>{item.name}</div>
                                 <div style={{color: '#666', fontSize: '0.9rem'}}>€{item.pricePerDay}/day • {item.category}</div>
+                                <div style={{fontSize: '0.8rem', color: '#999', marginTop: '4px'}}>Listed for rental</div>
                              </div>
                              <div>
                                 <Link to={`/item/${item.id}`} className="btn btn-outline" style={{fontSize: '0.85rem', padding: '6px 12px'}}>View</Link>
@@ -112,17 +151,48 @@ export default function Bookings() {
       {/* My Rentals Tab */}
       {activeTab === 'rentals' && (
         <div>
-            {bookings.length === 0 ? <div style={{textAlign: 'center', padding: '40px', color: '#999'}}>No active rentals yet. Go explore!</div> : (
+            {bookings.length === 0 ? (
+              <div style={{textAlign: 'center', padding: '60px 20px', color: '#999'}}>
+                <div style={{fontSize: '3rem', marginBottom: '12px'}}>🎮</div>
+                <h3>No rentals yet</h3>
+                <p>Explore and book gaming gear from other users</p>
+                <Link to="/" className="btn btn-primary" style={{marginTop: '16px'}}>Browse items</Link>
+              </div>
+            ) : (
                 <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
-                    {bookings.map(b => (
-                        <div key={b.id} className="sidebar-card" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                            <div>
-                                <div style={{fontWeight: 600, marginBottom: '4px'}}>Item #{b.itemId}</div>
-                                <div style={{fontSize: '0.9rem', color: '#666'}}>{b.startDate} — {b.endDate}</div>
+                    {bookings.map(booking => {
+                      const item = itemsMap[booking.itemId];
+                      return (
+                        <div key={booking.id} className="sidebar-card" style={{display: 'flex', gap: '16px', alignItems: 'center'}}>
+                            <div style={{width: '80px', height: '80px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: '#eee'}}>
+                              {item && item.imageUrl ? (
+                                <img src={item.imageUrl} alt={item?.name} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                              ) : (
+                                <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc'}}>
+                                  Loading...
+                                </div>
+                              )}
                             </div>
-                            <div>{renderStatus(b.status)}</div>
+                            
+                            <div style={{flex: 1}}>
+                                <div style={{fontWeight: 600, fontSize: '1.1rem'}}>{item ? item.name : `Item #${booking.itemId}`}</div>
+                                <div style={{color: '#666', fontSize: '0.9rem', marginTop: '4px'}}>
+                                  📅 {new Date(booking.startDate).toLocaleDateString()} → {new Date(booking.endDate).toLocaleDateString()}
+                                </div>
+                                <div style={{color: '#666', fontSize: '0.9rem'}}>
+                                  💰 €{booking.totalPrice?.toFixed(2) || 'N/A'}
+                                </div>
+                            </div>
+
+                            <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px'}}>
+                              {renderStatus(booking.status)}
+                              {booking.status === 'APPROVED' && (
+                                <Link to={`/item/${booking.itemId}`} className="btn btn-outline" style={{fontSize: '0.85rem', padding: '4px 10px'}}>View item</Link>
+                              )}
+                            </div>
                         </div>
-                    ))}
+                      );
+                    })}
                 </div>
             )}
         </div>
@@ -131,25 +201,66 @@ export default function Bookings() {
       {/* Requests Tab */}
       {activeTab === 'requests' && (
         <div>
-             {requests.length === 0 ? <div style={{textAlign: 'center', padding: '40px', color: '#999'}}>No booking requests yet. List more items!</div> : (
+             {requests.length === 0 ? (
+               <div style={{textAlign: 'center', padding: '60px 20px', color: '#999'}}>
+                 <div style={{fontSize: '3rem', marginBottom: '12px'}}>📭</div>
+                 <h3>No booking requests</h3>
+                 <p>Requests from renters will appear here</p>
+               </div>
+             ) : (
                 <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
-                    {requests.map(r => (
-                        <div key={r.id} className="sidebar-card" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                             <div>
-                                <div style={{fontWeight: 600, marginBottom: '4px'}}>Item #{r.itemId}</div>
-                                <div style={{fontSize: '0.9rem', color: '#666'}}>User #{r.userId} • {r.startDate} — {r.endDate}</div>
+                    {requests.map(request => {
+                      const item = itemsMap[request.itemId];
+                      return (
+                        <div key={request.id} className="sidebar-card" style={{display: 'flex', gap: '16px', alignItems: 'center'}}>
+                             <div style={{width: '80px', height: '80px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: '#eee'}}>
+                              {item && item.imageUrl ? (
+                                <img src={item.imageUrl} alt={item?.name} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                              ) : (
+                                <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc'}}>
+                                  Loading...
+                                </div>
+                              )}
                             </div>
                             
-                            {r.status === 'PENDING' ? (
-                                <div style={{display: 'flex', gap: '8px'}}>
-                                    <button className="btn btn-primary" style={{padding: '6px 12px', fontSize: '0.85rem'}} onClick={() => handleStatusUpdate(r.id, 'APPROVED')}>Accept</button>
-                                    <button className="btn btn-danger" style={{padding: '6px 12px', fontSize: '0.85rem'}} onClick={() => handleStatusUpdate(r.id, 'REJECTED')}>Decline</button>
+                            <div style={{flex: 1}}>
+                                <div style={{fontWeight: 600, fontSize: '1.1rem'}}>{item ? item.name : `Item #${request.itemId}`}</div>
+                                <div style={{color: '#666', fontSize: '0.9rem', marginTop: '4px'}}>
+                                  👤 Renter ID: {request.userId}
                                 </div>
-                            ) : (
-                                <div>{renderStatus(r.status)}</div>
-                            )}
+                                <div style={{color: '#666', fontSize: '0.9rem'}}>
+                                  📅 {new Date(request.startDate).toLocaleDateString()} → {new Date(request.endDate).toLocaleDateString()}
+                                </div>
+                                <div style={{color: 'var(--primary)', fontWeight: 600, fontSize: '0.95rem', marginTop: '4px'}}>
+                                  💰 €{request.totalPrice?.toFixed(2) || 'N/A'}
+                                </div>
+                            </div>
+                            
+                            <div style={{display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '120px'}}>
+                              {request.status === 'PENDING' ? (
+                                <div style={{display: 'flex', gap: '8px'}}>
+                                    <button 
+                                      className="btn btn-primary" 
+                                      style={{padding: '6px 12px', fontSize: '0.85rem', flex: 1}} 
+                                      onClick={() => handleStatusUpdate(request.id, 'APPROVED')}
+                                    >
+                                      ✓ Accept
+                                    </button>
+                                    <button 
+                                      className="btn btn-danger" 
+                                      style={{padding: '6px 12px', fontSize: '0.85rem', flex: 1}} 
+                                      onClick={() => handleStatusUpdate(request.id, 'REJECTED')}
+                                    >
+                                      ✕ Decline
+                                    </button>
+                                </div>
+                              ) : (
+                                <div>{renderStatus(request.status)}</div>
+                              )}
+                            </div>
                         </div>
-                    ))}
+                      );
+                    })}
                 </div>
              )}
         </div>

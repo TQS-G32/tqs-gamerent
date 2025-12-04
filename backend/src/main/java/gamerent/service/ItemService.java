@@ -24,15 +24,71 @@ public class ItemService {
         return itemRepository.findAll();
     }
 
-    public List<Item> searchItems(String query, String category) {
+    public List<Item> getAllItemsPaginated(int page, int pageSize) {
+        List<Item> allItems = itemRepository.findAll();
+        int start = page * pageSize;
+        int end = Math.min(start + pageSize, allItems.size());
+        if (start >= allItems.size()) return new ArrayList<>();
+        return allItems.subList(start, end);
+    }
+
+    public int getTotalItemCount() {
+        return (int) itemRepository.count();
+    }
+
+    public List<Item> searchAllItemsByName(String query) {
+        if (query != null && !query.isEmpty()) {
+            return itemRepository.fuzzySearchByName(query);
+        }
+        return getAllItems();
+    }
+
+    public List<Item> searchAllItemsByNameAndCategory(String query, String category) {
         if (query != null && !query.isEmpty() && category != null && !category.isEmpty()) {
-            return itemRepository.findByNameContainingIgnoreCaseAndCategoryIgnoreCase(query, category);
+            return itemRepository.fuzzySearchByNameAndCategory(query, category);
         } else if (query != null && !query.isEmpty()) {
-            return itemRepository.findByNameContainingIgnoreCase(query);
+            return itemRepository.fuzzySearchByName(query);
         } else if (category != null && !category.isEmpty()) {
             return itemRepository.findByCategoryIgnoreCase(category);
         }
         return getAllItems();
+    }
+
+    public List<Item> searchAllItemsPaginated(String query, String category, int page, int pageSize) {
+        List<Item> results = searchAllItemsByNameAndCategory(query, category);
+        int start = page * pageSize;
+        int end = Math.min(start + pageSize, results.size());
+        if (start >= results.size()) return new ArrayList<>();
+        return results.subList(start, end);
+    }
+
+    public int getSearchAllItemsResultCount(String query, String category) {
+        return searchAllItemsByNameAndCategory(query, category).size();
+    }
+
+    public List<Item> searchItems(String query, String category) {
+        if (query != null && !query.isEmpty() && category != null && !category.isEmpty()) {
+            // Use fuzzy search for both query and category
+            return itemRepository.fuzzySearchByNameAndCategory(query, category);
+        } else if (query != null && !query.isEmpty()) {
+            // Use fuzzy search for name (handles partial matches like "playstatio")
+            return itemRepository.fuzzySearchByName(query);
+        } else if (category != null && !category.isEmpty()) {
+            return itemRepository.findByCategoryIgnoreCase(category);
+        }
+        return getAllItems();
+    }
+
+    public List<Item> searchItemsPaginated(String query, String category, int page, int pageSize) {
+        List<Item> results = searchItems(query, category);
+        int start = page * pageSize;
+        int end = Math.min(start + pageSize, results.size());
+        if (start >= results.size()) return new ArrayList<>();
+        return results.subList(start, end);
+    }
+
+    public int getSearchResultCount(String query, String category) {
+        return searchItems(query, category).size();
     }
     
     public List<Item> getItemsByOwner(Long ownerId) {
@@ -49,18 +105,61 @@ public class ItemService {
     }
 
     public void populateFromIGDB(int limit, User owner) {
-        List<JsonNode> games = igdbService.getPopularGames(limit);
         List<Item> items = new ArrayList<>();
-
-        for (JsonNode game : games) {
+        
+        // Carrega jogos da IGDB
+        List<JsonNode> games = igdbService.getPopularGames(limit);
+        
+        for (int i = 0; i < games.size(); i++) {
+            JsonNode game = games.get(i);
             String name = game.get("name").asText();
             String description = game.has("summary") ? game.get("summary").asText() : "A great game";
-            double price = getRandomPrice();
+            // Truncate description to fit database limit (2048 chars)
+            if (description.length() > 2048) {
+                description = description.substring(0, 2045) + "...";
+            }
             String imageUrl = getImageUrl(game);
 
-            Item item = new Item(name, description, price, imageUrl, owner);
+            Item item = new Item(name, description, null, imageUrl, owner);
             item.setCategory("Game");
+            double price = getRandomPrice();
+            item.setPricePerDay(price);
+            
             items.add(item);
+        }
+        
+        // Adiciona consoles com fundo escuro e nome
+        String[] consoles = {
+            "PlayStation 5", "PlayStation 4", "Xbox Series X", "Xbox Series S", "Xbox One",
+            "Nintendo Switch", "Nintendo Switch OLED", "Nintendo Switch Lite",
+            "Steam Deck", "PlayStation Vita", "Nintendo 3DS"
+        };
+        
+        for (String consoleName : consoles) {
+            String imageUrl = "https://dummyimage.com/400x500/1a1a1a/ffffff?text=" + consoleName.replace(" ", "+");
+            Item console = new Item(consoleName, "Gaming console for rent. High performance and great selection of games.", null, 
+                imageUrl, owner);
+            console.setCategory("Console");
+            console.setPricePerDay(getRandomPriceForConsole());
+            items.add(console);
+        }
+        
+        // Adiciona acessórios com fundo escuro e nome
+        String[] accessories = {
+            "PlayStation 5 Controller", "Xbox Controller", "Nintendo Pro Controller",
+            "Gaming Headset", "Mechanical Keyboard", "Gaming Mouse",
+            "Monitor 144Hz", "USB-C Cable", "HDMI Cable", "Controller Charging Dock",
+            "Game Pass Subscription Card", "PlayStation Plus Card", "Gaming Chair",
+            "Cooling Fan", "Laptop Stand", "Mouse Pad"
+        };
+        
+        for (String accessoryName : accessories) {
+            String imageUrl = "https://dummyimage.com/400x500/2a2a2a/ffffff?text=" + accessoryName.replace(" ", "+");
+            Item accessory = new Item(accessoryName, "Quality gaming accessory to enhance your gaming experience.", null,
+                imageUrl, owner);
+            accessory.setCategory("Accessory");
+            accessory.setPricePerDay(getRandomPriceForAccessory());
+            items.add(accessory);
         }
 
         itemRepository.saveAll(items);
@@ -70,16 +169,28 @@ public class ItemService {
         // Random price between 1.99 and 5.99
         return Math.round((1.99 + (random.nextDouble() * 4)) * 100) / 100.0;
     }
+    
+    private double getRandomPriceForConsole() {
+        // Random price between 8.99 and 15.99 for consoles
+        return Math.round((8.99 + (random.nextDouble() * 7)) * 100) / 100.0;
+    }
+    
+    private double getRandomPriceForAccessory() {
+        // Random price between 0.99 and 4.99 for accessories
+        return Math.round((0.99 + (random.nextDouble() * 4)) * 100) / 100.0;
+    }
 
     private String getImageUrl(JsonNode game) {
         if (game.has("cover") && game.get("cover").has("url")) {
             String url = game.get("cover").get("url").asText();
             // IGDB returns URLs starting with //, we need to add https:
             if (url.startsWith("//")) {
-                return "https:" + url;
+                url = "https:" + url;
             }
+            // Replace t_thumb with t_720p for better quality
+            url = url.replace("t_thumb", "t_720p");
             return url;
         }
-        return "https://via.placeholder.com/200x120?text=" + game.get("name").asText().replace(" ", "+");
+        return "https://dummyimage.com/400x500/1a1a1a/ffffff?text=" + game.get("name").asText().replace(" ", "+");
     }
 }

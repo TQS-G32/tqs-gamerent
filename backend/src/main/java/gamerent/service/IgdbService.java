@@ -73,7 +73,8 @@ public class IgdbService {
         headers.set("Authorization", authToken);
         headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
 
-        String body = "fields id,name,cover.url,summary; where rating > 70 & cover.url != null; sort popularity desc; limit " + limit + ";";
+        // Fetch ALL games with no limit (IGDB max is 500 per request, so we fetch the max)
+        String body = "fields id,name,cover.url,summary; where rating > 0 & cover.url != null; sort rating desc; limit " + (limit > 0 ? limit : 500) + ";";
         HttpEntity<String> entity = new HttpEntity<>(body, headers);
 
         try {

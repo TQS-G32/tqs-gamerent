@@ -7,6 +7,7 @@ import gamerent.service.ItemService;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/items")
@@ -14,20 +15,61 @@ import java.util.List;
 public class ItemController {
     private final ItemService itemService;
     private final UserRepository userRepository;
+    private static final int DEFAULT_PAGE_SIZE = 10;
 
     public ItemController(ItemService itemService, UserRepository userRepository) {
         this.itemService = itemService;
         this.userRepository = userRepository;
     }
 
+    @GetMapping("/catalog")
+    public Map<String, Object> getCatalog(@RequestParam(required=false) String q, 
+            @RequestParam(required=false) String category,
+            @RequestParam(defaultValue = "0") int page) {
+        List<Item> items = itemService.searchAllItemsPaginated(q, category, page, DEFAULT_PAGE_SIZE);
+        int totalCount = itemService.getSearchAllItemsResultCount(q, category);
+        int totalPages = (totalCount + DEFAULT_PAGE_SIZE - 1) / DEFAULT_PAGE_SIZE;
+        
+        return Map.of(
+            "items", items,
+            "page", page,
+            "pageSize", DEFAULT_PAGE_SIZE,
+            "totalCount", totalCount,
+            "totalPages", totalPages
+        );
+    }
+
     @GetMapping
-    public List<Item> getAllItems() {
-        return itemService.getAllItems();
+    public Map<String, Object> getAllItems(@RequestParam(defaultValue = "0") int page) {
+        List<Item> items = itemService.getAllItemsPaginated(page, DEFAULT_PAGE_SIZE);
+        int totalCount = itemService.getTotalItemCount();
+        int totalPages = (totalCount + DEFAULT_PAGE_SIZE - 1) / DEFAULT_PAGE_SIZE;
+        
+        return Map.of(
+            "items", items,
+            "page", page,
+            "pageSize", DEFAULT_PAGE_SIZE,
+            "totalCount", totalCount,
+            "totalPages", totalPages
+        );
     }
     
     @GetMapping("/search")
-    public List<Item> search(@RequestParam(required=false) String q, @RequestParam(required=false) String category) {
-        return itemService.searchItems(q, category);
+    public Map<String, Object> search(
+            @RequestParam(required=false) String q, 
+            @RequestParam(required=false) String category,
+            @RequestParam(defaultValue = "0") int page) {
+        List<Item> items = itemService.searchItemsPaginated(q, category, page, DEFAULT_PAGE_SIZE);
+        int totalCount = itemService.getSearchResultCount(q, category);
+        int totalPages = (totalCount + DEFAULT_PAGE_SIZE - 1) / DEFAULT_PAGE_SIZE;
+        
+        return Map.of(
+            "items", items,
+            "page", page,
+            "pageSize", DEFAULT_PAGE_SIZE,
+            "totalCount", totalCount,
+            "totalPages", totalPages
+        );
     }
 
     @PostMapping
