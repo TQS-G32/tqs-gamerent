@@ -3,6 +3,10 @@
 
 # secret variables
 .env
+.env.staging
+.env.production
+.env.*
+!.env.*.example
 
 frontend/node_modules/
 /Gu*

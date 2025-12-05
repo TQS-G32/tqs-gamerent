@@ -1,0 +1,68 @@
+services:
+  db:
+    image: postgres:15
+    container_name: gamerent-prod-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+      POSTGRES_DB: gamerent_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - prod_db_data:/var/lib/postgresql/data
+    networks:
+      - gamerent-prod-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d gamerent_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  backend:
+    build: ./backend
+    container_name: gamerent-prod-backend
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./.env.production
+    environment:
+      # Database configuration (internal Docker DNS)
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/gamerent_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-admin}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+      SPRING_DATASOURCE_DRIVER: org.postgresql.Driver
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SERVER_PORT: 8080
+      SPRING_PROFILES_ACTIVE: production
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - gamerent-prod-network
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build: ./frontend
+    container_name: gamerent-prod-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - gamerent-prod-network
+    restart: always
+
+networks:
+  gamerent-prod-network:
+    driver: bridge
+
+volumes:
+  prod_db_data:
