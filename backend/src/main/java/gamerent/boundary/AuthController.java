@@ -2,7 +2,6 @@ package gamerent.boundary;
 
 import gamerent.data.User;
 import gamerent.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -89,10 +88,6 @@ public class AuthController {
         if (session == null) return ResponseEntity.status(401).body(NOT_AUTHENTICATED_MSG);
         Object uid = session.getAttribute(USER_ID_KEY);
         if (uid == null) return ResponseEntity.status(401).body(NOT_AUTHENTICATED_MSG);
-
-        Long userId = null;
-        if (uid instanceof Long longValue) userId = longValue;
-        else if (uid instanceof Integer intValue) userId = intValue.longValue();
 
         User user = userService.findByEmail((String) session.getAttribute(USER_EMAIL_KEY)).orElse(null);
         if (user == null) return ResponseEntity.status(401).body(NOT_AUTHENTICATED_MSG);

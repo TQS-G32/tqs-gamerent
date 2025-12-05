@@ -55,7 +55,7 @@ public class IgdbService {
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
             return response.getBody();
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error searching " + type + ": " + e.getMessage(), e);
+            logger.log(Level.SEVERE, e, () -> "Error searching " + type + ": " + e.getMessage());
             return "[]";
         }
     }
@@ -86,7 +86,7 @@ public class IgdbService {
             JsonNode[] games = mapper.readValue(response.getBody(), JsonNode[].class);
             return List.of(games);
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error fetching popular games: " + e.getMessage(), e);
+            logger.log(Level.SEVERE, e, () -> "Error fetching popular games: " + e.getMessage());
             return Collections.emptyList();
         }
     }
