@@ -72,16 +72,8 @@ public class ItemService {
     }
 
     public List<Item> searchItems(String query, String category) {
-        if (query != null && !query.isEmpty() && category != null && !category.isEmpty()) {
-            // Use fuzzy search for both query and category
-            return itemRepository.fuzzySearchByNameAndCategory(query, category);
-        } else if (query != null && !query.isEmpty()) {
-            // Use fuzzy search for name (handles partial matches like "playstatio")
-            return itemRepository.fuzzySearchByName(query);
-        } else if (category != null && !category.isEmpty()) {
-            return itemRepository.findByCategoryIgnoreCase(category);
-        }
-        return getAllItems();
+        // Delegate to searchAllItemsByNameAndCategory for consistency
+        return searchAllItemsByNameAndCategory(query, category);
     }
 
     public List<Item> searchItemsPaginated(String query, String category, int page, int pageSize) {
@@ -193,28 +185,42 @@ public class ItemService {
             throw new RuntimeException("Unauthorized: You are not the owner of this item");
         }
 
+        updateMinimalRentalDays(item, minRentalDays);
+        updateAvailability(item, available, itemId);
+
+        return itemRepository.save(item);
+    }
+
+    private void updateMinimalRentalDays(Item item, Integer minRentalDays) {
         if (minRentalDays != null) {
             if (minRentalDays < 1 || minRentalDays > 30) {
                 throw new RuntimeException("Minimum rental days must be between 1 and 30");
             }
             item.setMinRentalDays(minRentalDays);
         }
+    }
 
-        if (available != null && available.equals(Boolean.FALSE)) {
-            // Prevent deactivating if there are active/confirmed bookings (PENDING or APPROVED) with endDate >= today
-            java.time.LocalDate today = java.time.LocalDate.now();
-            for (BookingRequest b : bookingRepository.findByItemId(itemId)) {
-                if ((b.getStatus() == BookingStatus.APPROVED || b.getStatus() == BookingStatus.PENDING) &&
-                    (b.getEndDate() != null && !b.getEndDate().isBefore(today))) {
-                    throw new RuntimeException("Item has active or confirmed bookings and cannot be set to Inactive");
-                }
-            }
-            item.setAvailable(false);
-        } else if (available != null && available.equals(Boolean.TRUE)) {
-            item.setAvailable(true);
+    private void updateAvailability(Item item, Boolean available, Long itemId) {
+        if (available == null) {
+            return;
         }
 
-        return itemRepository.save(item);
+        if (available) {
+            item.setAvailable(true);
+        } else {
+            checkActiveBookingsBeforeDeactivation(itemId);
+            item.setAvailable(false);
+        }
+    }
+
+    private void checkActiveBookingsBeforeDeactivation(Long itemId) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        for (BookingRequest b : bookingRepository.findByItemId(itemId)) {
+            if ((b.getStatus() == BookingStatus.APPROVED || b.getStatus() == BookingStatus.PENDING) &&
+                (b.getEndDate() != null && !b.getEndDate().isBefore(today))) {
+                throw new RuntimeException("Item has active or confirmed bookings and cannot be set to Inactive");
+            }
+        }
     }
 
     private double getRandomPrice() {

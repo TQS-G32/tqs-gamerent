@@ -74,7 +74,7 @@ public class Item {
         this.pricePerDay = pricePerDay;
     }
     public Boolean getAvailable() {
-        return available == null ? false : available;
+        return available != null && available;
     }
     public void setAvailable(Boolean available) {
         this.available = available;

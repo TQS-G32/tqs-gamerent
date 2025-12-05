@@ -18,6 +18,7 @@ public class ItemController {
     private final ItemService itemService;
     private final UserRepository userRepository;
     private static final int DEFAULT_PAGE_SIZE = 10;
+    private static final String USER_ID_KEY = "userId";
 
     public ItemController(ItemService itemService, UserRepository userRepository) {
         this.itemService = itemService;
@@ -99,9 +100,9 @@ public class ItemController {
     public Item addItem(@RequestBody Item item, HttpServletRequest request) {
         // Resolve current user from session if present
         Long ownerId = 1L;
-        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute("userId") : null;
-        if (uid instanceof Long) ownerId = (Long) uid;
-        else if (uid instanceof Integer) ownerId = ((Integer) uid).longValue();
+        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute(USER_ID_KEY) : null;
+        if (uid instanceof Long longValue) ownerId = longValue;
+        else if (uid instanceof Integer intValue) ownerId = intValue.longValue();
 
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new RuntimeException("Owner not found. Ensure DataInitializer has run."));
@@ -111,9 +112,9 @@ public class ItemController {
     @GetMapping("/my-items")
     public List<Item> getMyItems(HttpServletRequest request) {
         Long ownerId = 1L;
-        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute("userId") : null;
-        if (uid instanceof Long) ownerId = (Long) uid;
-        else if (uid instanceof Integer) ownerId = ((Integer) uid).longValue();
+        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute(USER_ID_KEY) : null;
+        if (uid instanceof Long longValue) ownerId = longValue;
+        else if (uid instanceof Integer intValue) ownerId = intValue.longValue();
 
         return itemService.getItemsByOwner(ownerId);
     }
@@ -126,9 +127,9 @@ public class ItemController {
     @PutMapping("/{id}/settings")
     public Map<String, Object> updateItemSettings(@PathVariable Long id, @RequestBody Map<String, Object> payload, HttpServletRequest request) {
         Long ownerId = 1L;
-        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute("userId") : null;
-        if (uid instanceof Long) ownerId = (Long) uid;
-        else if (uid instanceof Integer) ownerId = ((Integer) uid).longValue();
+        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute(USER_ID_KEY) : null;
+        if (uid instanceof Long longValue) ownerId = longValue;
+        else if (uid instanceof Integer intValue) ownerId = intValue.longValue();
 
         Boolean available = payload.containsKey("available") ? (Boolean) payload.get("available") : null;
         Integer minRentalDays = payload.containsKey("minRentalDays") ? (Integer) payload.get("minRentalDays") : null;

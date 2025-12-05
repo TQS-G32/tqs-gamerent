@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 const CATEGORIES = ["All", "Game", "Console", "Accessory"];
-const PAGE_SIZE = 10;
 
 export default function Home() {
   const [items, setItems] = useState([]);

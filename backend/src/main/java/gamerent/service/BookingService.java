@@ -26,39 +26,68 @@ public class BookingService {
         Item item = itemRepository.findById(itemId)
             .orElseThrow(() -> new RuntimeException("Item not found"));
 
+        validateOwnership(item, userId);
+        validateItemAvailability(item);
+        validateDates(start, end);
+        validateDateRange(start, end, itemId);
+        validateMinimalRentalPeriod(start, end, item);
+
+        return createAndSaveBooking(itemId, userId, start, end, item);
+    }
+
+    private void validateOwnership(Item item, Long userId) {
         if (item.getOwner().getId().equals(userId)) {
             throw new RuntimeException("You cannot rent your own item");
         }
-        // Item must be available for renting
+    }
+
+    private void validateItemAvailability(Item item) {
         if (item.getAvailable() == null || !item.getAvailable()) {
             throw new RuntimeException("Item is currently not available for rent");
         }
-        // Validate dates
-        if (start == null || end == null) throw new RuntimeException("Start and end dates required");
-        if (start.isAfter(end)) throw new RuntimeException("Start date must be before end date");
-        if (start.isBefore(LocalDate.now()) || end.isBefore(LocalDate.now())) throw new RuntimeException("Start and End date must be in the future");
+    }
 
-        // Check overlapping approved bookings
+    private void validateDates(LocalDate start, LocalDate end) {
+        if (start == null || end == null) {
+            throw new RuntimeException("Start and end dates required");
+        }
+        if (start.isAfter(end)) {
+            throw new RuntimeException("Start date must be before end date");
+        }
+        if (start.isBefore(LocalDate.now()) || end.isBefore(LocalDate.now())) {
+            throw new RuntimeException("Start and End date must be in the future");
+        }
+    }
+
+    private void validateDateRange(LocalDate start, LocalDate end, Long itemId) {
         List<BookingRequest> existing = bookingRepository.findByItemIdAndStatus(itemId, BookingStatus.APPROVED);
         for (BookingRequest b : existing) {
             if (isOverlapping(start, end, b.getStartDate(), b.getEndDate())) {
                 throw new RuntimeException("Item is not available for these dates");
             }
         }
-        // Enforce minimum rental period
+    }
+
+    private void validateMinimalRentalPeriod(LocalDate start, LocalDate end, Item item) {
         long days = ChronoUnit.DAYS.between(start, end) + 1;
         if (days <= 0) days = 1;
         Integer minDays = item.getMinRentalDays() == null ? 1 : item.getMinRentalDays();
         if (minDays != null && days < minDays) {
             throw new RuntimeException("Minimum rental period is " + minDays + " day(s)");
         }
+    }
+
+    private BookingRequest createAndSaveBooking(Long itemId, Long userId, LocalDate start, LocalDate end, Item item) {
+        long days = ChronoUnit.DAYS.between(start, end) + 1;
+        if (days <= 0) days = 1;
+
         BookingRequest request = new BookingRequest();
         request.setItemId(itemId);
         request.setUserId(userId);
         request.setStartDate(start);
         request.setEndDate(end);
         request.setStatus(BookingStatus.PENDING);
-        Double total = item.getPricePerDay() != null ? item.getPricePerDay() * (double) days : 0.0;
+        Double total = item.getPricePerDay() != null ? item.getPricePerDay() * days : 0.0;
         request.setTotalPrice(Math.round(total * 100.0) / 100.0);
         
         return bookingRepository.save(request);
@@ -90,11 +119,10 @@ public class BookingService {
     // Get all bookings for items owned by ownerId
     public List<BookingRequest> getOwnerBookings(Long ownerId) {
         List<Item> ownerItems = itemRepository.findByOwnerId(ownerId);
-        List<Long> itemIds = ownerItems.stream().map(Item::getId).collect(Collectors.toList());
         
         return ownerItems.stream()
             .flatMap(item -> bookingRepository.findByItemId(item.getId()).stream())
-            .collect(Collectors.toList());
+            .toList();
     }
 
     private boolean isOverlapping(LocalDate start1, LocalDate end1, LocalDate start2, LocalDate end2) {
