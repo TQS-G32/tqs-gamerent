@@ -50,8 +50,8 @@ class BookingServiceTest {
         booking.setId(1L);
         booking.setItemId(1L);
         booking.setUserId(2L);
-        booking.setStartDate(LocalDate.of(2025, 12, 1));
-        booking.setEndDate(LocalDate.of(2025, 12, 5));
+        booking.setStartDate(LocalDate.now().plusDays(1));
+        booking.setEndDate(LocalDate.now().plusDays(5));
         booking.setStatus(BookingStatus.PENDING);
     }
     
@@ -63,11 +63,11 @@ class BookingServiceTest {
         when(bookingRepository.save(any(BookingRequest.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
         
-        BookingRequest result = bookingService.createBooking(
-            1L, 2L, 
-            LocalDate.of(2025, 12, 1),
-            LocalDate.of(2025, 12, 5)
-        );
+        LocalDate start = LocalDate.now().plusDays(1);
+        LocalDate end = LocalDate.now().plusDays(5);
+        
+        BookingRequest result = bookingService.createBooking(1L, 2L, start, end);
+
         
         assertNotNull(result);
         assertEquals(BookingStatus.PENDING, result.getStatus());
@@ -81,8 +81,8 @@ class BookingServiceTest {
     void createBooking_ShouldThrowWhenOverlapping() {
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
         BookingRequest existing = new BookingRequest();
-        existing.setStartDate(LocalDate.of(2025, 12, 2));
-        existing.setEndDate(LocalDate.of(2025, 12, 4));
+        existing.setStartDate(LocalDate.now().plusDays(2));
+        existing.setEndDate(LocalDate.now().plusDays(3));
         
         when(bookingRepository.findByItemIdAndStatus(1L, BookingStatus.APPROVED))
             .thenReturn(List.of(existing));
@@ -90,8 +90,8 @@ class BookingServiceTest {
         assertThrows(RuntimeException.class, () ->
             bookingService.createBooking(
                 1L, 2L, 
-                LocalDate.of(2025, 12, 1),
-                LocalDate.of(2025, 12, 5)
+                LocalDate.now().plusDays(1),
+                LocalDate.now().plusDays(5)
             ),
             "Should throw exception for overlapping dates"
         );
@@ -106,10 +106,27 @@ class BookingServiceTest {
         assertThrows(RuntimeException.class, () ->
             bookingService.createBooking(
                 1L, 2L,
-                LocalDate.of(2025, 12, 5),
-                LocalDate.of(2025, 12, 1)
+                LocalDate.now().plusDays(5),
+                LocalDate.now().plusDays(1)
             ),
             "Should throw exception when start is after end"
+        );
+
+        verify(bookingRepository, never()).save(any());
+    }
+
+    @Test
+    void createBooking_ShouldValidateDatesNotInPast() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+        LocalDate pastDate = LocalDate.now().minusDays(1);
+
+        assertThrows(RuntimeException.class, () ->
+            bookingService.createBooking(
+                1L, 2L,
+                pastDate,
+                pastDate.plusDays(3)
+            ),
+            "Should throw exception when start date is in the past"
         );
 
         verify(bookingRepository, never()).save(any());
@@ -179,5 +196,44 @@ class BookingServiceTest {
         assertEquals(1, result.size());
         assertEquals(1L, result.get(0).getItemId());
         verify(itemRepository, times(1)).findByOwnerId(1L);
+    }
+
+    @Test
+    void createBooking_NullStartDate_ShouldThrowException() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+        
+        assertThrows(RuntimeException.class, () ->
+            bookingService.createBooking(1L, 2L, null, LocalDate.now().plusDays(5)),
+            "Should throw exception when start date is null"
+        );
+    }
+
+    @Test
+    void createBooking_NullEndDate_ShouldThrowException() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+        
+        assertThrows(RuntimeException.class, () ->
+            bookingService.createBooking(1L, 2L, LocalDate.now().plusDays(1), null),
+            "Should throw exception when end date is null"
+        );
+    }
+
+    @Test
+    void createBooking_ItemNotFound_ShouldThrowException() {
+        when(itemRepository.findById(999L)).thenReturn(Optional.empty());
+        
+        assertThrows(RuntimeException.class, () ->
+            bookingService.createBooking(999L, 2L, LocalDate.now().plusDays(1), LocalDate.now().plusDays(5))
+        );
+    }
+
+    @Test
+    void getItemBookings_ShouldReturnBookingsForItem() {
+        when(bookingRepository.findByItemId(1L)).thenReturn(List.of(booking));
+        
+        List<BookingRequest> result = bookingService.getItemBookings(1L);
+        
+        assertEquals(1, result.size());
+        assertEquals(1L, result.get(0).getItemId());
     }
 }

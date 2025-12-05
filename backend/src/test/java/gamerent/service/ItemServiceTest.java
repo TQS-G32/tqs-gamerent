@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -187,5 +188,35 @@ class ItemServiceTest {
         int count = itemService.getSearchAllItemsResultCount(null, null);
 
         assertEquals(3, count);
+    }
+
+    @Test
+    void getAllItemsPaginated_FirstPage_ShouldReturnFirstTwoItems() {
+        when(itemRepository.findAll()).thenReturn(List.of(ps5, xbox, controller));
+
+        List<Item> result = itemService.getAllItemsPaginated(0, 2);
+
+        assertEquals(2, result.size());
+        assertEquals(ps5.getId(), result.get(0).getId());
+        assertEquals(xbox.getId(), result.get(1).getId());
+    }
+
+    @Test
+    void getAllItemsPaginated_SecondPage_ShouldReturnRemainingItem() {
+        when(itemRepository.findAll()).thenReturn(List.of(ps5, xbox, controller));
+
+        List<Item> result = itemService.getAllItemsPaginated(1, 2);
+
+        assertEquals(1, result.size());
+        assertEquals(controller.getId(), result.get(0).getId());
+    }
+
+    @Test
+    void getAllItemsPaginated_PageBeyondItems_ShouldReturnEmptyList() {
+        when(itemRepository.findAll()).thenReturn(List.of(ps5, xbox, controller));
+
+        List<Item> result = itemService.getAllItemsPaginated(5, 2);
+
+        assertTrue(result.isEmpty());
     }
 }

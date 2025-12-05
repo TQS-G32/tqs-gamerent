@@ -32,6 +32,7 @@ public class BookingService {
         // Validate dates
         if (start == null || end == null) throw new RuntimeException("Start and end dates required");
         if (start.isAfter(end)) throw new RuntimeException("Start date must be before end date");
+        if (start.isBefore(LocalDate.now()) || end.isBefore(LocalDate.now())) throw new RuntimeException("Start and End date must be in the future");
 
         // Check overlapping approved bookings
         List<BookingRequest> existing = bookingRepository.findByItemIdAndStatus(itemId, BookingStatus.APPROVED);

@@ -111,4 +111,18 @@ class BookingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APPROVED"));
     }
+
+    @Test
+    void getBookingsByItem_NoItemId_ShouldReturnEmpty() throws Exception {
+        mockMvc.perform(get("/api/bookings"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void getBookingsByItem_InvalidItemId_ShouldReturnEmpty() throws Exception {
+        mockMvc.perform(get("/api/bookings?itemId=0"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
 }
