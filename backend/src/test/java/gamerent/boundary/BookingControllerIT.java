@@ -91,8 +91,8 @@ class BookingControllerIT {
             {
                 "itemId": %d,
                 "userId": %d,
-                "startDate": "2025-12-01",
-                "endDate": "2025-12-05"
+                "startDate": "2035-12-01",
+                "endDate": "2035-12-05"
             }
             """.formatted(item.getId(), renter.getId());
         

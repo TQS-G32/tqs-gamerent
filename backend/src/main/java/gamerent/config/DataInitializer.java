@@ -53,8 +53,9 @@ public class DataInitializer implements CommandLineRunner {
             demoUser = userRepository.findAll().get(0);
         }
 
-        if (itemRepository.count() < 10) {
-            itemService.populateFromIGDB(10, demoUser);
+        if (itemRepository.count() == 0) {
+            // Populate ALL games from IGDB (no limit - fetches everything available)
+            itemService.populateFromIGDB(0, demoUser);
         }
     }
 }

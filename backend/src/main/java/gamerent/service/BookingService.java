@@ -7,6 +7,7 @@ import gamerent.data.Item;
 import gamerent.data.ItemRepository;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,6 +29,10 @@ public class BookingService {
         if (item.getOwner().getId().equals(userId)) {
             throw new RuntimeException("You cannot rent your own item");
         }
+        // Validate dates
+        if (start == null || end == null) throw new RuntimeException("Start and end dates required");
+        if (start.isAfter(end)) throw new RuntimeException("Start date must be before end date");
+        if (start.isBefore(LocalDate.now()) || end.isBefore(LocalDate.now())) throw new RuntimeException("Start and End date must be in the future");
 
         // Check overlapping approved bookings
         List<BookingRequest> existing = bookingRepository.findByItemIdAndStatus(itemId, BookingStatus.APPROVED);
@@ -43,6 +48,11 @@ public class BookingService {
         request.setStartDate(start);
         request.setEndDate(end);
         request.setStatus(BookingStatus.PENDING);
+        // Calculate total price (days inclusive)
+        long days = ChronoUnit.DAYS.between(start, end) + 1;
+        if (days <= 0) days = 1;
+        Double total = item.getPricePerDay() != null ? item.getPricePerDay() * (double) days : 0.0;
+        request.setTotalPrice(Math.round(total * 100.0) / 100.0);
         
         return bookingRepository.save(request);
     }
@@ -64,6 +74,10 @@ public class BookingService {
     
     public List<BookingRequest> getUserBookings(Long userId) {
         return bookingRepository.findByUserId(userId);
+    }
+    
+    public List<BookingRequest> getItemBookings(Long itemId) {
+        return bookingRepository.findByItemId(itemId);
     }
     
     // Get all bookings for items owned by ownerId
