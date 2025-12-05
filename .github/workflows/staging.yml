@@ -88,14 +88,11 @@ jobs:
     name: Deploy to Staging Environment
     runs-on: ubuntu-latest
     needs: build
-    environment:
-      name: staging
-      url: http://deti-tqs-13.ua.pt:8081
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Tailscale
+      tskey-client-kC2J2op8uH11CNTRL-ZpBszijRCYinJ6cNzj77YiGqNp8kSZCdh      - name: Setup Tailscale
         uses: tailscale/github-action@v2
         with:
           oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
