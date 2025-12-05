@@ -6,6 +6,8 @@ import gamerent.data.User;
 import gamerent.data.UserRepository;
 import gamerent.service.BookingService;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 import java.util.List;
 import java.util.Map;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,7 +34,11 @@ public class BookingController {
         else if (uid instanceof Integer) userId = ((Integer) uid).longValue();
         if (userId == null) userId = booking.getUserId();
 
-        return bookingService.createBooking(booking.getItemId(), userId, booking.getStartDate(), booking.getEndDate());
+        try {
+            return bookingService.createBooking(booking.getItemId(), userId, booking.getStartDate(), booking.getEndDate());
+        } catch (RuntimeException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+        }
     }
     
     @GetMapping
@@ -71,7 +77,11 @@ public class BookingController {
         if (uid instanceof Long) resolvedOwnerId = (Long) uid;
         else if (uid instanceof Integer) resolvedOwnerId = ((Integer) uid).longValue();
         if (resolvedOwnerId == null) resolvedOwnerId = 1L;
-        return bookingService.updateStatus(id, status, resolvedOwnerId);
+        try {
+            return bookingService.updateStatus(id, status, resolvedOwnerId);
+        } catch (RuntimeException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+        }
     }
 }
 

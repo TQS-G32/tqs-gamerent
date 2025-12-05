@@ -56,13 +56,13 @@ public class BookingSteps {
         item.setOwner(owner);
         item.setPricePerDay(10.0);
         item.setCategory("Console");
+        item.setAvailable(true);
         itemRepository.save(item);
     }
 
     @When("the user {string} books {string} for tomorrow")
     public void the_user_books_for_tomorrow(String renterEmail, String itemName) {
         renter = createOrGetUser(renterEmail);
-        item = itemRepository.findByNameContainingIgnoreCase(itemName).get(0);
         booking = bookingService.createBooking(item.getId(), renter.getId(), LocalDate.now().plusDays(1), LocalDate.now().plusDays(2));
     }
 

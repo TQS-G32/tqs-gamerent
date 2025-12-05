@@ -7,6 +7,8 @@ export default function Bookings() {
   const [listings, setListings] = useState([]); // My Items
   const [itemsMap, setItemsMap] = useState({}); // Map of itemId -> Item data
   const [activeTab, setActiveTab] = useState('listings'); // 'rentals', 'listings', 'requests'
+  const [editingItemId, setEditingItemId] = useState(null); // For inline editing
+  const [editForm, setEditForm] = useState({ available: true, minRentalDays: 1 });
   
   const userJson = window.localStorage.getItem('user');
   const currentUser = userJson ? JSON.parse(userJson) : null;
@@ -80,6 +82,43 @@ export default function Bookings() {
     });
   };
 
+  const handleEditItem = (item) => {
+    setEditingItemId(item.id);
+    setEditForm({ 
+      available: item.available !== null ? item.available : false, 
+      minRentalDays: item.minRentalDays || 1 
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingItemId(null);
+    setEditForm({ available: true, minRentalDays: 1 });
+  };
+
+  const handleSaveSettings = (itemId) => {
+    fetch(`/api/items/${itemId}/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editForm),
+      credentials: 'include'
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('Failed to update settings');
+      return res.json();
+    })
+    .then(data => {
+      // Update the item in the listings array
+      setListings(listings.map(item => 
+        item.id === itemId ? data.item : item
+      ));
+      setEditingItemId(null);
+      alert(data.message || 'Settings updated successfully');
+    })
+    .catch(err => {
+      alert(err.message || 'Error updating settings');
+    });
+  };
+
   const renderStatus = (status) => {
       const colors = {
           'PENDING': '#f39c12',
@@ -129,17 +168,90 @@ export default function Bookings() {
              ) : (
                 <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
                     {listings.map(item => (
-                        <div key={item.id} className="sidebar-card" style={{display: 'flex', gap: '16px', alignItems: 'center'}}>
+                        <div key={item.id} className="sidebar-card" style={{display: 'flex', gap: '16px', alignItems: 'flex-start', padding: '16px'}}>
                              <div style={{width: '80px', height: '80px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: '#eee'}}>
                                 <img src={item.imageUrl || "https://via.placeholder.com/150"} alt={item.name} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
                              </div>
                              <div style={{flex: 1}}>
-                                <div style={{fontWeight: 600, fontSize: '1.1rem'}}>{item.name}</div>
-                                <div style={{color: '#666', fontSize: '0.9rem'}}>€{item.pricePerDay}/day • {item.category}</div>
-                                <div style={{fontSize: '0.8rem', color: '#999', marginTop: '4px'}}>Listed for rental</div>
+                                <div style={{fontWeight: 600, fontSize: '1.1rem', marginBottom: '8px'}}>{item.name}</div>
+                                
+                                {editingItemId === item.id ? (
+                                  // Edit Mode
+                                  <div style={{background: '#f8f9fa', padding: '12px', borderRadius: '8px', marginBottom: '8px'}}>
+                                    <div style={{marginBottom: '12px'}}>
+                                      <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.95rem'}}>
+                                        <input 
+                                          type="checkbox" 
+                                          checked={editForm.available}
+                                          onChange={(e) => setEditForm({...editForm, available: e.target.checked})}
+                                          style={{width: '18px', height: '18px', cursor: 'pointer'}}
+                                        />
+                                        <span style={{fontWeight: 500}}>Available for rent</span>
+                                      </label>
+                                    </div>
+                                    <div style={{marginBottom: '12px'}}>
+                                      <label style={{display: 'block', fontSize: '0.9rem', marginBottom: '4px', fontWeight: 500}}>
+                                        Minimum rental period (days)
+                                      </label>
+                                      <input 
+                                        type="number" 
+                                        min="1" 
+                                        max="30"
+                                        value={editForm.minRentalDays}
+                                        onChange={(e) => setEditForm({...editForm, minRentalDays: parseInt(e.target.value) || 1})}
+                                        style={{width: '100px', padding: '6px 10px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '0.9rem'}}
+                                      />
+                                      <span style={{marginLeft: '8px', fontSize: '0.85rem', color: '#666'}}>
+                                        (1-30 days)
+                                      </span>
+                                    </div>
+                                    <div style={{display: 'flex', gap: '8px'}}>
+                                      <button 
+                                        className="btn btn-primary" 
+                                        onClick={() => handleSaveSettings(item.id)}
+                                        style={{fontSize: '0.85rem', padding: '6px 14px'}}
+                                      >
+                                        ✓ Save Changes
+                                      </button>
+                                      <button 
+                                        className="btn btn-outline" 
+                                        onClick={handleCancelEdit}
+                                        style={{fontSize: '0.85rem', padding: '6px 14px'}}
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  // View Mode
+                                  <>
+                                    <div style={{color: '#666', fontSize: '0.9rem', marginBottom: '6px'}}>
+                                      €{item.pricePerDay ? item.pricePerDay.toFixed(2) : '0.00'}/day • {item.category}
+                                    </div>
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px'}}>
+                                      <span style={{
+                                        fontSize: '0.85rem', 
+                                        padding: '3px 10px', 
+                                        borderRadius: '12px',
+                                        background: item.available ? '#d4edda' : '#f8d7da',
+                                        color: item.available ? '#155724' : '#721c24',
+                                        fontWeight: 600
+                                      }}>
+                                        {item.available ? '✓ Active' : '✕ Inactive'}
+                                      </span>
+                                      <span style={{fontSize: '0.85rem', color: '#666'}}>
+                                        Min. {item.minRentalDays || 1} day{(item.minRentalDays || 1) > 1 ? 's' : ''}
+                                      </span>
+                                    </div>
+                                  </>
+                                )}
                              </div>
-                             <div>
-                                <Link to={`/item/${item.id}`} className="btn btn-outline" style={{fontSize: '0.85rem', padding: '6px 12px'}}>View</Link>
+                             <div style={{display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '120px'}}>
+                                {editingItemId !== item.id && (
+                                  <Link to={`/item/${item.id}`} className="btn btn-outline" style={{fontSize: '0.85rem', padding: '6px 12px', textAlign: 'center'}}>
+                                    👁️ View
+                                  </Link>
+                                )}
                              </div>
                         </div>
                     ))}

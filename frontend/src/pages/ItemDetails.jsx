@@ -12,6 +12,10 @@ export default function ItemDetails() {
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [ownerMode, setOwnerMode] = useState(false);
+  const [ownerAvailable, setOwnerAvailable] = useState(false);
+  const [ownerMinDays, setOwnerMinDays] = useState(1);
+  const [ownerMsg, setOwnerMsg] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,9 +24,21 @@ export default function ItemDetails() {
       .then((data) => {
         setItem(data);
         // If this item has a rental listing, select it by default
-        if (data.pricePerDay != null) {
+        if (data.pricePerDay != null && data.available) {
           setSelectedRental(data);
         }
+        // Setup owner controls if current user is owner
+        try {
+          const stored = window.localStorage.getItem('user');
+          if (stored) {
+            const u = JSON.parse(stored);
+            if (u && data.owner && u.id === data.owner.id) {
+              setOwnerMode(true);
+              setOwnerAvailable(!!data.available);
+              setOwnerMinDays(data.minRentalDays || 1);
+            }
+          }
+        } catch (e) {}
       })
       .catch(err => console.error(err));
 
@@ -46,6 +62,7 @@ export default function ItemDetails() {
   function handleBook(e, rentalItem) {
     e.preventDefault();
     setErrorMsg("");
+    setSuccess(false);
     
     const user = window.localStorage.getItem('user');
     if (!user) {
@@ -61,6 +78,14 @@ export default function ItemDetails() {
 
     if (new Date(startDate) >= new Date(endDate)) {
       setErrorMsg("Start date must be before end date");
+      return;
+    }
+
+    // Enforce minimum rental days client-side
+    const days = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
+    const minDays = rentalItem.minRentalDays || 1;
+    if (days < minDays) {
+      setErrorMsg(`This item requires a minimum rental period of ${minDays} day${minDays > 1 ? 's' : ''}. You selected ${days} day${days > 1 ? 's' : ''}.`);
       return;
     }
 
@@ -159,14 +184,28 @@ export default function ItemDetails() {
                           transition: 'all 0.2s'
                         }}
                       >
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                          <div>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                          <div style={{flex: 1}}>
                             <div style={{fontWeight: 600, fontSize: '1.1rem', color: 'var(--primary)'}}>
                               €{rental.pricePerDay.toFixed(2)}/day
                             </div>
                             <div style={{fontSize: '0.85rem', color: '#666', marginTop: '4px'}}>
                               by {rental.owner ? rental.owner.name : 'Unknown'}
                             </div>
+                            {rental.minRentalDays && rental.minRentalDays > 1 && (
+                              <div style={{
+                                fontSize: '0.75rem', 
+                                color: '#666', 
+                                marginTop: '6px',
+                                padding: '3px 8px',
+                                background: '#fff',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                display: 'inline-block'
+                              }}>
+                                Min. {rental.minRentalDays} days
+                              </div>
+                            )}
                           </div>
                           <div style={{fontSize: '1.2rem'}}>
                             {selectedRental?.id === rental.id ? '✓' : ''}
@@ -270,19 +309,110 @@ export default function ItemDetails() {
                     )}
                   </div>
                 )}
+
+                {/* Owner Configuration - Only visible when viewing own item */}
+                {ownerMode && (
+                  <div className="sidebar-card" style={{background: '#fff9e6', borderColor: '#ffe066'}}>
+                    <h3 style={{marginTop: 0, fontSize: '1.1rem', marginBottom: '16px'}}>⚙️ Configure Your Listing</h3>
+                    <div style={{marginBottom: '16px'}}>
+                      <label style={{display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.95rem'}}>
+                        <input 
+                          type="checkbox" 
+                          checked={ownerAvailable}
+                          onChange={(e) => setOwnerAvailable(e.target.checked)}
+                          style={{width: '18px', height: '18px', cursor: 'pointer'}}
+                        />
+                        <span style={{fontWeight: 600}}>Available for rent</span>
+                      </label>
+                    </div>
+                    <div style={{marginBottom: '16px'}}>
+                      <label style={{display: 'block', fontSize: '0.9rem', marginBottom: '6px', fontWeight: 600}}>
+                        Minimum rental period
+                      </label>
+                      <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <input 
+                          type="number" 
+                          min="1" 
+                          max="30"
+                          value={ownerMinDays}
+                          onChange={(e) => setOwnerMinDays(parseInt(e.target.value) || 1)}
+                          style={{width: '80px', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '0.9rem'}}
+                        />
+                        <span style={{fontSize: '0.9rem', color: '#666'}}>day{ownerMinDays > 1 ? 's' : ''} (max 30)</span>
+                      </div>
+                    </div>
+                    <div style={{display: 'flex', gap: '8px'}}>
+                      <button 
+                        className="btn btn-primary" 
+                        onClick={async () => {
+                          setOwnerMsg('');
+                          try {
+                            const res = await fetch(`/api/items/${item.id}/settings`, {
+                              method: 'PUT', 
+                              credentials: 'include', 
+                              headers: {'Content-Type':'application/json'},
+                              body: JSON.stringify({ available: ownerAvailable, minRentalDays: ownerMinDays })
+                            });
+                            if (!res.ok) {
+                              const err = await res.json().catch(()=>({message:'Failed to update settings'}));
+                              // Show the actual error message from backend
+                              setOwnerMsg('✗ ' + (err.message || 'Failed to update settings'));
+                            } else {
+                              const body = await res.json();
+                              setOwnerMsg('✓ Settings updated successfully');
+                              // Refresh item data
+                              const updated = body.item || (await (await fetch(`/api/items/${id}`, {credentials:'include'})).json());
+                              setItem(updated);
+                              setOwnerAvailable(!!updated.available);
+                              setOwnerMinDays(updated.minRentalDays || 1);
+                              if (updated.pricePerDay != null && updated.available) {
+                                setSelectedRental(updated);
+                              }
+                            }
+                          } catch (err) {
+                            setOwnerMsg('✗ ' + (err.message || 'Failed to update settings'));
+                          }
+                        }}
+                        style={{flex: 1}}
+                      >
+                        💾 Save Changes
+                      </button>
+                      <button 
+                        className="btn btn-outline" 
+                        onClick={() => { 
+                          setOwnerAvailable(!!item.available); 
+                          setOwnerMinDays(item.minRentalDays || 1); 
+                          setOwnerMsg(''); 
+                        }}
+                      >
+                        ↺ Reset
+                      </button>
+                    </div>
+                    {ownerMsg && (
+                      <div style={{
+                        marginTop: '12px', 
+                        padding: '10px', 
+                        borderRadius: '4px',
+                        background: ownerMsg.includes('✓') ? '#d4edda' : '#f8d7da',
+                        color: ownerMsg.includes('✓') ? '#155724' : '#721c24',
+                        fontSize: '0.9rem'
+                      }}>
+                        {ownerMsg}
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             ) : (
               <div className="sidebar-card" style={{textAlign: 'center', padding: '24px 0'}}>
                 <div style={{fontSize: '3rem', marginBottom: '12px'}}>✨</div>
                 <h3 style={{margin: '0 0 8px 0', fontSize: '1.1rem'}}>No rental listings found</h3>
                 <p style={{color: '#666', marginTop: '8px', fontSize: '0.95rem', lineHeight: 1.5}}>
-                  This item hasn't been listed for rent yet. Check back later or browse similar items!
+                  This item hasn't been listed for rent yet!
                 </p>
                 <div style={{display:'flex', gap: '8px', justifyContent:'center', marginTop:'16px', flexWrap: 'wrap'}}>
                     <Link to="/" className="btn btn-outline">← Back to browsing</Link>
-                    <button className="btn btn-primary" onClick={() => {
-                      alert('Feature coming soon! You can contact other users to request a rental.');
-                    }}>Request Rental</button>
+
                 </div>
               </div>
             )}

@@ -45,6 +45,7 @@ class BookingServiceTest {
         item.setName("Test Item");
         item.setOwner(owner);
         item.setPricePerDay(15.0);
+        item.setAvailable(true);
         
         booking = new BookingRequest();
         booking.setId(1L);
@@ -79,11 +80,11 @@ class BookingServiceTest {
     
     @Test
     void createBooking_ShouldThrowWhenOverlapping() {
-        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
         BookingRequest existing = new BookingRequest();
         existing.setStartDate(LocalDate.now().plusDays(2));
         existing.setEndDate(LocalDate.now().plusDays(3));
         
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
         when(bookingRepository.findByItemIdAndStatus(1L, BookingStatus.APPROVED))
             .thenReturn(List.of(existing));
         

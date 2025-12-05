@@ -29,6 +29,10 @@ public class BookingService {
         if (item.getOwner().getId().equals(userId)) {
             throw new RuntimeException("You cannot rent your own item");
         }
+        // Item must be available for renting
+        if (item.getAvailable() == null || !item.getAvailable()) {
+            throw new RuntimeException("Item is currently not available for rent");
+        }
         // Validate dates
         if (start == null || end == null) throw new RuntimeException("Start and end dates required");
         if (start.isAfter(end)) throw new RuntimeException("Start date must be before end date");
@@ -41,16 +45,19 @@ public class BookingService {
                 throw new RuntimeException("Item is not available for these dates");
             }
         }
-        
+        // Enforce minimum rental period
+        long days = ChronoUnit.DAYS.between(start, end) + 1;
+        if (days <= 0) days = 1;
+        Integer minDays = item.getMinRentalDays() == null ? 1 : item.getMinRentalDays();
+        if (minDays != null && days < minDays) {
+            throw new RuntimeException("Minimum rental period is " + minDays + " day(s)");
+        }
         BookingRequest request = new BookingRequest();
         request.setItemId(itemId);
         request.setUserId(userId);
         request.setStartDate(start);
         request.setEndDate(end);
         request.setStatus(BookingStatus.PENDING);
-        // Calculate total price (days inclusive)
-        long days = ChronoUnit.DAYS.between(start, end) + 1;
-        if (days <= 0) days = 1;
         Double total = item.getPricePerDay() != null ? item.getPricePerDay() * (double) days : 0.0;
         request.setTotalPrice(Math.round(total * 100.0) / 100.0);
         
