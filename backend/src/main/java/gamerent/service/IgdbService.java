@@ -14,6 +14,7 @@ import java.util.List;
 public class IgdbService {
     private static final String GAMES_URL = "https://api.igdb.com/v4/games";
     private static final String PLATFORMS_URL = "https://api.igdb.com/v4/platforms";
+    private static final String PLATFORM_LOGOS_URL = "https://api.igdb.com/v4/platform_logos";
     
     @Value("${igdb.client-id}")
     private String clientId;
@@ -40,7 +41,7 @@ public class IgdbService {
         
         if ("Console".equalsIgnoreCase(type)) {
             url = PLATFORMS_URL;
-            body = "search \"" + query + "\"; fields name,platform_logo.url; limit 10;";
+            body = "search \"" + query + "\"; fields name,platform_logo; limit 10;";
         } else {
             // For games, fetch cover and platforms
             url = GAMES_URL;
@@ -50,11 +51,60 @@ public class IgdbService {
         HttpEntity<String> entity = new HttpEntity<>(body, headers);
         try {
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
-            return response.getBody();
+            String responseBody = response.getBody();
+            
+            // For consoles, resolve platform_logo IDs to actual URLs
+            if ("Console".equalsIgnoreCase(type)) {
+                responseBody = resolvePlatformLogos(responseBody, headers);
+            }
+            
+            return responseBody;
         } catch (Exception e) {
             System.err.println("Error searching " + type + ": " + e.getMessage());
             return "[]";
         }
+    }
+    
+    private String resolvePlatformLogos(String platformsJson, HttpHeaders headers) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode[] platforms = mapper.readValue(platformsJson, JsonNode[].class);
+            
+            for (JsonNode platform : platforms) {
+                if (platform.has("platform_logo")) {
+                    long logoId = platform.get("platform_logo").asLong();
+                    String logoUrl = fetchPlatformLogoUrl(logoId, headers);
+                    
+                    // Create a new object node to replace platform_logo with the URL
+                    com.fasterxml.jackson.databind.node.ObjectNode logoNode = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+                    logoNode.put("url", logoUrl);
+                    ((com.fasterxml.jackson.databind.node.ObjectNode) platform).set("platform_logo", logoNode);
+                }
+            }
+            
+            return mapper.writeValueAsString(platforms);
+        } catch (Exception e) {
+            System.err.println("Error resolving platform logos: " + e.getMessage());
+            return platformsJson;
+        }
+    }
+    
+    private String fetchPlatformLogoUrl(long logoId, HttpHeaders headers) {
+        try {
+            String body = "where id = " + logoId + "; fields url;";
+            HttpEntity<String> entity = new HttpEntity<>(body, headers);
+            ResponseEntity<String> response = restTemplate.exchange(PLATFORM_LOGOS_URL, HttpMethod.POST, entity, String.class);
+            
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode[] logos = mapper.readValue(response.getBody(), JsonNode[].class);
+            
+            if (logos.length > 0 && logos[0].has("url")) {
+                return logos[0].get("url").asText();
+            }
+        } catch (Exception e) {
+            System.err.println("Error fetching platform logo " + logoId + ": " + e.getMessage());
+        }
+        return null;
     }
     
     // Kept for compatibility if needed, defaults to Game

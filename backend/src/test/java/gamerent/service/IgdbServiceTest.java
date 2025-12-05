@@ -132,4 +132,141 @@ class IgdbServiceTest {
 
         assertTrue(result.isEmpty());
     }
+
+    @Test
+    void search_ConsoleType_ShouldResolvePlatformLogos() throws Exception {
+        String consoleResponse = """
+            [
+                {
+                    "id": 167,
+                    "name": "PlayStation 5",
+                    "platform_logo": 892
+                }
+            ]
+            """;
+
+        String logoResponse = """
+            [
+                {
+                    "id": 892,
+                    "url": "//images.igdb.com/igdb/image/upload/t_thumb/plos.jpg"
+                }
+            ]
+            """;
+
+        when(restTemplate.exchange(
+            contains("platforms"),
+            eq(HttpMethod.POST),
+            any(HttpEntity.class),
+            eq(String.class)
+        )).thenReturn(new ResponseEntity<>(consoleResponse, HttpStatus.OK));
+
+        when(restTemplate.exchange(
+            contains("platform_logos"),
+            eq(HttpMethod.POST),
+            any(HttpEntity.class),
+            eq(String.class)
+        )).thenReturn(new ResponseEntity<>(logoResponse, HttpStatus.OK));
+
+        String result = igdbService.search("PlayStation 5", "Console");
+
+        assertNotNull(result);
+        assertTrue(result.contains("plos.jpg"));
+        assertTrue(result.contains("platform_logo"));
+    }
+
+    @Test
+    void search_ConsoleType_WithMissingLogo_ShouldHandleGracefully() throws Exception {
+        String consoleResponse = """
+            [
+                {
+                    "id": 167,
+                    "name": "PlayStation 5",
+                    "platform_logo": 999
+                }
+            ]
+            """;
+
+        String emptyLogoResponse = "[]";
+
+        when(restTemplate.exchange(
+            contains("platforms"),
+            eq(HttpMethod.POST),
+            any(HttpEntity.class),
+            eq(String.class)
+        )).thenReturn(new ResponseEntity<>(consoleResponse, HttpStatus.OK));
+
+        when(restTemplate.exchange(
+            contains("platform_logos"),
+            eq(HttpMethod.POST),
+            any(HttpEntity.class),
+            eq(String.class)
+        )).thenReturn(new ResponseEntity<>(emptyLogoResponse, HttpStatus.OK));
+
+        String result = igdbService.search("PlayStation 5", "Console");
+
+        assertNotNull(result);
+        assertTrue(result.contains("PlayStation 5"));
+    }
+
+    @Test
+    void search_GameType_ShouldNotResolvePlatformLogos() throws Exception {
+        String gameResponse = """
+            [
+                {
+                    "id": 119133,
+                    "name": "Elden Ring",
+                    "cover": {
+                        "url": "//images.igdb.com/igdb/image/upload/t_thumb/co4jni.jpg"
+                    },
+                    "platforms": []
+                }
+            ]
+            """;
+
+        when(restTemplate.exchange(
+            contains("games"),
+            eq(HttpMethod.POST),
+            any(HttpEntity.class),
+            eq(String.class)
+        )).thenReturn(new ResponseEntity<>(gameResponse, HttpStatus.OK));
+
+        String result = igdbService.search("Elden Ring", "Game");
+
+        assertNotNull(result);
+        assertTrue(result.contains("Elden Ring"));
+        assertTrue(result.contains("co4jni.jpg"));
+    }
+
+    @Test
+    void search_PlatformLogoResolution_ApiError_ShouldReturnOriginalJson() throws Exception {
+        String consoleResponse = """
+            [
+                {
+                    "id": 167,
+                    "name": "PlayStation 5",
+                    "platform_logo": 892
+                }
+            ]
+            """;
+
+        when(restTemplate.exchange(
+            contains("platforms"),
+            eq(HttpMethod.POST),
+            any(HttpEntity.class),
+            eq(String.class)
+        )).thenReturn(new ResponseEntity<>(consoleResponse, HttpStatus.OK));
+
+        when(restTemplate.exchange(
+            contains("platform_logos"),
+            eq(HttpMethod.POST),
+            any(HttpEntity.class),
+            eq(String.class)
+        )).thenThrow(new RestClientException("API Error"));
+
+        String result = igdbService.search("PlayStation 5", "Console");
+
+        assertNotNull(result);
+        assertTrue(result.contains("PlayStation 5"));
+    }
 }
