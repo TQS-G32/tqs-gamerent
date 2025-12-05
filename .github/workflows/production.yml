@@ -96,14 +96,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to Production VM
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
+
+      - name: Deploy to Production VM via Tailscale
         uses: appleboy/ssh-action@v1.0.0
         with:
-          host: 193.137.168.160
+          host: ${{ secrets.TAILSCALE_VM_IP }}
           username: ${{ secrets.VM_SSH_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           port: 22
           script: |
+            mkdir -p /home/${{ secrets.VM_SSH_USER }}/backups
+            docker exec gamerent-prod-db pg_dump -U admin gamerent_db > /home/${{ secrets.VM_SSH_USER }}/backups/gamerent-db-$(date +%Y%m%d-%H%M%S).sql || true
             cd /home/${{ secrets.VM_SSH_USER }}/gamerent-production
             git fetch origin
             git checkout main
@@ -115,9 +123,14 @@ jobs:
       - name: Health Check
         run: |
           echo "Waiting for services to start..."
-          sleep 30
-          curl -f http://193.137.168.160/actuator/health || exit 1
+          sleep 40
+          curl -f http://${{ secrets.TAILSCALE_VM_IP }}:8080/actuator/health || exit 1
 
-      - name: Notify Deployment
-        if: success()
-        run: echo "Production deployment successful!"
+      - name: Clean Up
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.TAILSCALE_VM_IP }}
+          username: ${{ secrets.VM_SSH_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          port: 22
+          script: docker image prune -f
