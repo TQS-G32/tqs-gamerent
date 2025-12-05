@@ -76,13 +76,6 @@ export default function PostItem() {
     try {
         const res = await fetch(`/api/igdb/search?q=${searchTerm}&type=${itemType}`);
         const data = await res.json();
-        window.console.log(`[SEARCH] Found ${data.length} ${itemType}s`);
-        if (itemType === "Console") {
-            data.forEach(consoleItem => {
-                const imageUrl = consoleItem.platform_logo && consoleItem.platform_logo.url ? consoleItem.platform_logo.url : null;
-                window.console.log(`[CONSOLE] ${consoleItem.name} - Image URL: ${imageUrl}`);
-            });
-        }
         setResults(data);
     } catch (err) {
         window.console.error("Search failed", err);
@@ -93,23 +86,17 @@ export default function PostItem() {
 
   const getImage = (item) => {
       if (item.cover && item.cover.url) return item.cover.url;
-      if (item.platform_logo && item.platform_logo.url) {
-          window.console.log(`[GET_IMAGE] Retrieved platform logo URL: ${item.platform_logo.url}`);
-          return item.platform_logo.url;
-      }
-      window.console.log(`[GET_IMAGE] No image found for item:`, item);
+      if (item.platform_logo && item.platform_logo.url) return item.platform_logo.url;
       return null;
   }
 
   const selectGame = (game) => {
     let imageUrl = "";
     const rawUrl = getImage(game);
-    window.console.log(`[SELECT_GAME] Game/Console: ${game.name}, Raw URL: ${rawUrl}`);
-
+    
     if (rawUrl) {
         imageUrl = rawUrl.startsWith("//") ? "https:" + rawUrl : rawUrl;
         imageUrl = imageUrl.replace("t_thumb", "t_cover_big").replace("t_logo_med", "t_logo_huge");
-        window.console.log(`[SELECT_GAME] Processed image URL: ${imageUrl}`);
     }
 
     setSelectedGame(game);
