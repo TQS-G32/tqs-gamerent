@@ -2,7 +2,9 @@
 .vscode/
 
 # secret variables
-.env
+.env*
+.env.staging
+.env.production
 
 frontend/node_modules/
 /Gu*
