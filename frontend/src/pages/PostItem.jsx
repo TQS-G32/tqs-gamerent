@@ -96,7 +96,12 @@ export default function PostItem() {
     
     if (rawUrl) {
         imageUrl = rawUrl.startsWith("//") ? "https:" + rawUrl : rawUrl;
-        imageUrl = imageUrl.replace("t_thumb", "t_cover_big").replace("t_logo_med", "t_logo_huge");
+        // Use t_720p for games, t_logo_huge for consoles
+        if (itemType === "Game") {
+            imageUrl = imageUrl.replace("t_thumb", "t_720p");
+        } else {
+            imageUrl = imageUrl.replace("t_logo_med", "t_logo_huge");
+        }
     }
 
     setSelectedGame(game);
@@ -257,7 +262,16 @@ export default function PostItem() {
             <div className="item-grid">
                 {results.map((game) => {
                     const rawUrl = getImage(game);
-                    const displayUrl = rawUrl ? (rawUrl.startsWith("//") ? "https:" + rawUrl : rawUrl) : null;
+                    let displayUrl = rawUrl ? (rawUrl.startsWith("//") ? "https:" + rawUrl : rawUrl) : null;
+                    
+                    // Apply quality transformation based on item type
+                    if (displayUrl) {
+                        if (itemType === "Game") {
+                            displayUrl = displayUrl.replace("t_thumb", "t_720p");
+                        } else {
+                            displayUrl = displayUrl.replace("t_logo_med", "t_logo_huge");
+                        }
+                    }
 
                     return (
                         <div key={game.id} className="item-card" onClick={() => selectGame(game)}>
