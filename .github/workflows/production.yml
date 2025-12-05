@@ -96,6 +96,7 @@ jobs:
         with:
           oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
+          tags: tag:ci
 
       - name: Deploy to Production VM via Tailscale
         uses: appleboy/ssh-action@v1.0.0
