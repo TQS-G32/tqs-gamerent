@@ -95,7 +95,7 @@ jobs:
         uses: tailscale/github-action@v2
         with:
           oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
+          oauth-client-secret:: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
 
       - name: Deploy to Production VM via Tailscale
         uses: appleboy/ssh-action@v1.0.0
