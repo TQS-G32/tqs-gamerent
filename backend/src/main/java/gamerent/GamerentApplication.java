@@ -4,9 +4,12 @@ import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import java.io.File;
+import java.util.logging.Logger;
 
 @SpringBootApplication
 public class GamerentApplication {
+    private static final Logger logger = Logger.getLogger(GamerentApplication.class.getName());
+
     public static void main(String[] args) {
         // Try to load .env file from current dir or parent dir
         try {
@@ -27,7 +30,7 @@ public class GamerentApplication {
             );
         } catch (Exception e) {
             // Ignore if .env not found or error
-            System.out.println("Could not load .env file: " + e.getMessage());
+            logger.warning("Could not load .env file: " + e.getMessage());
         }
 
 		SpringApplication.run(GamerentApplication.class, args);

@@ -18,6 +18,8 @@ import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -57,10 +59,8 @@ class ItemControllerTest {
 
     @Test
     void getCatalog_ShouldReturnAllItems() throws Exception {
-        given(itemService.searchAllItemsPaginated(null, null, 0, 10))
+        given(itemService.searchAllItemsByNameAndCategory(null, null))
                 .willReturn(List.of(testItem));
-        given(itemService.getSearchAllItemsResultCount(null, null))
-                .willReturn(1);
 
         mockMvc.perform(get("/api/items/catalog"))
                 .andExpect(status().isOk())
@@ -70,10 +70,8 @@ class ItemControllerTest {
 
     @Test
     void getCatalog_WithSearch_ShouldReturnFiltered() throws Exception {
-        given(itemService.searchAllItemsPaginated("PlayStation", null, 0, 10))
+        given(itemService.searchAllItemsByNameAndCategory("PlayStation", null))
                 .willReturn(List.of(testItem));
-        given(itemService.getSearchAllItemsResultCount("PlayStation", null))
-                .willReturn(1);
 
         mockMvc.perform(get("/api/items/catalog?q=PlayStation"))
                 .andExpect(status().isOk())
@@ -82,10 +80,8 @@ class ItemControllerTest {
 
     @Test
     void getCatalog_WithCategory_ShouldReturnFiltered() throws Exception {
-        given(itemService.searchAllItemsPaginated(null, "Console", 0, 10))
+        given(itemService.searchAllItemsByNameAndCategory(null, "Console"))
                 .willReturn(List.of(testItem));
-        given(itemService.getSearchAllItemsResultCount(null, "Console"))
-                .willReturn(1);
 
         mockMvc.perform(get("/api/items/catalog?category=Console"))
                 .andExpect(status().isOk())
@@ -94,10 +90,8 @@ class ItemControllerTest {
 
     @Test
     void getAllItems_ShouldReturnPaginated() throws Exception {
-        given(itemService.getAllItemsPaginated(0, 10))
+        given(itemService.getAllItems())
                 .willReturn(List.of(testItem));
-        given(itemService.getTotalItemCount())
-                .willReturn(1);
 
         mockMvc.perform(get("/api/items"))
                 .andExpect(status().isOk())
@@ -141,10 +135,8 @@ class ItemControllerTest {
 
     @Test
     void search_ShouldReturnSearchResults() throws Exception {
-        given(itemService.searchItemsPaginated("PlayStation", null, 0, 10))
+        given(itemService.searchItems("PlayStation", null))
                 .willReturn(List.of(testItem));
-        given(itemService.getSearchResultCount("PlayStation", null))
-                .willReturn(1);
 
         mockMvc.perform(get("/api/items/search?q=PlayStation"))
                 .andExpect(status().isOk())
@@ -153,13 +145,145 @@ class ItemControllerTest {
 
     @Test
     void getCatalog_WithPagination_ShouldReturnPage() throws Exception {
-        given(itemService.searchAllItemsPaginated(null, null, 1, 10))
+        given(itemService.searchAllItemsByNameAndCategory(null, null))
                 .willReturn(List.of());
-        given(itemService.getSearchAllItemsResultCount(null, null))
-                .willReturn(0);
 
         mockMvc.perform(get("/api/items/catalog?page=1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.page").value(1));
+    }
+
+    // Tests for rentable filter functionality
+    @Test
+    void getCatalog_WithRentableFilter_ShouldReturnOnlyRentableItems() throws Exception {
+        Item rentableItem = new Item();
+        rentableItem.setId(1L);
+        rentableItem.setName("Rentable Console");
+        rentableItem.setAvailable(true);
+        rentableItem.setPricePerDay(10.0);
+
+        given(itemService.searchAllItemsByNameAndCategory(null, null))
+                .willReturn(List.of(rentableItem));
+
+        mockMvc.perform(get("/api/items/catalog?rentable=true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].available").value(true))
+                .andExpect(jsonPath("$.items[0].pricePerDay").exists());
+    }
+
+    @Test
+    void getAllItems_WithRentableFilter_ShouldFilterCorrectly() throws Exception {
+        Item rentableItem = new Item();
+        rentableItem.setId(1L);
+        rentableItem.setAvailable(true);
+        rentableItem.setPricePerDay(5.0);
+
+        given(itemService.getAllItems()).willReturn(List.of(rentableItem));
+
+        mockMvc.perform(get("/api/items?rentable=true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].available").value(true));
+    }
+
+    @Test
+    void search_WithRentableFilter_ShouldReturnOnlyRentable() throws Exception {
+        Item rentableItem = new Item();
+        rentableItem.setId(1L);
+        rentableItem.setName("PlayStation 5");
+        rentableItem.setAvailable(true);
+        rentableItem.setPricePerDay(10.0);
+
+        given(itemService.searchItems("PlayStation", null))
+                .willReturn(List.of(rentableItem));
+
+        mockMvc.perform(get("/api/items/search?q=PlayStation&rentable=true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].available").value(true));
+    }
+
+    // Tests for updateItemSettings endpoint
+    @Test
+    void updateItemSettings_AsOwner_ShouldUpdateSuccessfully() throws Exception {
+        Item updatedItem = new Item();
+        updatedItem.setId(1L);
+        updatedItem.setAvailable(false);
+        updatedItem.setMinRentalDays(7);
+
+        given(itemService.updateItemSettings(1L, 1L, false, 7))
+                .willReturn(updatedItem);
+
+        mockMvc.perform(put("/api/items/1/settings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"available\": false, \"minRentalDays\": 7}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Settings updated successfully"))
+                .andExpect(jsonPath("$.item.available").value(false))
+                .andExpect(jsonPath("$.item.minRentalDays").value(7));
+    }
+
+    @Test
+    void updateItemSettings_OnlyAvailable_ShouldUpdateAvailability() throws Exception {
+        Item updatedItem = new Item();
+        updatedItem.setId(1L);
+        updatedItem.setAvailable(true);
+
+        given(itemService.updateItemSettings(eq(1L), eq(1L), eq(true), isNull()))
+                .willReturn(updatedItem);
+
+        mockMvc.perform(put("/api/items/1/settings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"available\": true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.item.available").value(true));
+    }
+
+    @Test
+    void updateItemSettings_OnlyMinDays_ShouldUpdateMinRentalDays() throws Exception {
+        Item updatedItem = new Item();
+        updatedItem.setId(1L);
+        updatedItem.setMinRentalDays(14);
+
+        given(itemService.updateItemSettings(eq(1L), eq(1L), isNull(), eq(14)))
+                .willReturn(updatedItem);
+
+        mockMvc.perform(put("/api/items/1/settings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"minRentalDays\": 14}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.item.minRentalDays").value(14));
+    }
+
+    @Test
+    void updateItemSettings_NotOwner_ShouldReturnBadRequest() throws Exception {
+        given(itemService.updateItemSettings(anyLong(), anyLong(), any(), any()))
+                .willThrow(new RuntimeException("Unauthorized: You are not the owner of this item"));
+
+        mockMvc.perform(put("/api/items/1/settings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"available\": false}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateItemSettings_WithPendingBookings_ShouldReturnBadRequest() throws Exception {
+        given(itemService.updateItemSettings(anyLong(), anyLong(), any(), any()))
+                .willThrow(new RuntimeException("Item has active or confirmed bookings and cannot be set to Inactive"));
+
+        mockMvc.perform(put("/api/items/1/settings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"available\": false}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateItemSettings_InvalidMinDays_ShouldReturnBadRequest() throws Exception {
+        given(itemService.updateItemSettings(anyLong(), anyLong(), any(), any()))
+                .willThrow(new RuntimeException("Minimum rental days must be between 1 and 30"));
+
+        mockMvc.perform(put("/api/items/1/settings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"minRentalDays\": 35}"))
+                .andExpect(status().isBadRequest());
     }
 }

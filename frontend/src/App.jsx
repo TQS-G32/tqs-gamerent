@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Route, BrowserRouter as Router, Routes, useNavigate } from "react-router-dom";
+import AuthPage from "./pages/AuthPage.jsx";
+import Bookings from "./pages/Bookings.jsx";
 import Home from "./pages/Home.jsx";
 import ItemDetails from "./pages/ItemDetails.jsx";
-import Bookings from "./pages/Bookings.jsx";
 import PostItem from "./pages/PostItem.jsx";
-import AuthPage from "./pages/AuthPage.jsx";
 
 function NavBar({ user }) {
   const [query, setQuery] = useState("");
@@ -97,7 +97,7 @@ export default function App() {
       <NavBar user={user} />
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/post-item" element={<PostItem />} />
+        <Route path="/post-item/*" element={<PostItem />} />
         <Route path="/item/:id" element={<ItemDetails />} />
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/auth" element={<AuthPage onAuth={handleAuth} />} />

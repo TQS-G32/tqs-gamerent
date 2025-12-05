@@ -63,6 +63,7 @@ class BookingControllerIT {
         item.setDescription("A test console");
         item.setCategory("Console");
         item.setPricePerDay(20.0);
+        item.setAvailable(true);
         item.setOwner(owner);
         item = itemRepository.save(item);
     }

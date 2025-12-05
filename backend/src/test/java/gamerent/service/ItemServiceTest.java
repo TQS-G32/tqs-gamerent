@@ -3,6 +3,9 @@ package gamerent.service;
 import gamerent.data.Item;
 import gamerent.data.ItemRepository;
 import gamerent.data.User;
+import gamerent.data.BookingRepository;
+import gamerent.data.BookingRequest;
+import gamerent.data.BookingStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -10,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,6 +29,9 @@ class ItemServiceTest {
 
     @Mock
     private IgdbService igdbService;
+
+    @Mock
+    private BookingRepository bookingRepository;
 
     @InjectMocks
     private ItemService itemService;
@@ -218,5 +225,188 @@ class ItemServiceTest {
         List<Item> result = itemService.getAllItemsPaginated(5, 2);
 
         assertTrue(result.isEmpty());
+    }
+
+    // Tests for updateItemSettings functionality
+    @Test
+    void updateItemSettings_AsOwner_ShouldUpdateAvailability() {
+        ps5.setAvailable(true);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(ps5));
+        when(bookingRepository.findByItemId(1L)).thenReturn(List.of());
+        when(itemRepository.save(any(Item.class))).thenReturn(ps5);
+
+        Item result = itemService.updateItemSettings(1L, 1L, false, null);
+
+        assertFalse(result.getAvailable());
+        verify(itemRepository).save(ps5);
+    }
+
+    @Test
+    void updateItemSettings_AsOwner_ShouldUpdateMinRentalDays() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(ps5));
+        when(itemRepository.save(any(Item.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        Item result = itemService.updateItemSettings(1L, 1L, null, 7);
+
+        assertEquals(7, result.getMinRentalDays());
+        verify(itemRepository).save(ps5);
+    }
+
+    @Test
+    void updateItemSettings_AsOwner_ShouldUpdateBothFields() {
+        ps5.setAvailable(false);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(ps5));
+        when(itemRepository.save(any(Item.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        Item result = itemService.updateItemSettings(1L, 1L, true, 5);
+
+        assertTrue(result.getAvailable());
+        assertEquals(5, result.getMinRentalDays());
+        verify(itemRepository).save(ps5);
+    }
+
+    @Test
+    void updateItemSettings_NotOwner_ShouldThrowException() {
+        User otherUser = new User();
+        otherUser.setId(2L);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(ps5));
+
+        RuntimeException exception = assertThrows(RuntimeException.class, 
+            () -> itemService.updateItemSettings(1L, 2L, false, null));
+        
+        assertTrue(exception.getMessage().contains("Unauthorized"));
+        verify(itemRepository, never()).save(any());
+    }
+
+    @Test
+    void updateItemSettings_ItemNotFound_ShouldThrowException() {
+        when(itemRepository.findById(999L)).thenReturn(Optional.empty());
+
+        RuntimeException exception = assertThrows(RuntimeException.class, 
+            () -> itemService.updateItemSettings(999L, 1L, false, null));
+        
+        assertTrue(exception.getMessage().contains("Item not found"));
+    }
+
+    @Test
+    void updateItemSettings_MinDaysTooLow_ShouldThrowException() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(ps5));
+
+        RuntimeException exception = assertThrows(RuntimeException.class, 
+            () -> itemService.updateItemSettings(1L, 1L, null, 0));
+        
+        assertTrue(exception.getMessage().contains("Minimum rental days must be between 1 and 30"));
+        verify(itemRepository, never()).save(any());
+    }
+
+    @Test
+    void updateItemSettings_MinDaysTooHigh_ShouldThrowException() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(ps5));
+
+        RuntimeException exception = assertThrows(RuntimeException.class, 
+            () -> itemService.updateItemSettings(1L, 1L, null, 31));
+        
+        assertTrue(exception.getMessage().contains("Minimum rental days must be between 1 and 30"));
+        verify(itemRepository, never()).save(any());
+    }
+
+    @Test
+    void updateItemSettings_DeactivateWithPendingBooking_ShouldThrowException() {
+        BookingRequest pendingBooking = new BookingRequest();
+        pendingBooking.setStatus(BookingStatus.PENDING);
+        pendingBooking.setEndDate(LocalDate.now().plusDays(5));
+        
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(ps5));
+        when(bookingRepository.findByItemId(1L)).thenReturn(List.of(pendingBooking));
+
+        RuntimeException exception = assertThrows(RuntimeException.class, 
+            () -> itemService.updateItemSettings(1L, 1L, false, null));
+        
+        assertTrue(exception.getMessage().contains("active or confirmed bookings"));
+        verify(itemRepository, never()).save(any());
+    }
+
+    @Test
+    void updateItemSettings_DeactivateWithApprovedBooking_ShouldThrowException() {
+        BookingRequest approvedBooking = new BookingRequest();
+        approvedBooking.setStatus(BookingStatus.APPROVED);
+        approvedBooking.setEndDate(LocalDate.now().plusDays(3));
+        
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(ps5));
+        when(bookingRepository.findByItemId(1L)).thenReturn(List.of(approvedBooking));
+
+        RuntimeException exception = assertThrows(RuntimeException.class, 
+            () -> itemService.updateItemSettings(1L, 1L, false, null));
+        
+        assertTrue(exception.getMessage().contains("active or confirmed bookings"));
+        verify(itemRepository, never()).save(any());
+    }
+
+    @Test
+    void updateItemSettings_DeactivateWithPastBooking_ShouldSucceed() {
+        BookingRequest pastBooking = new BookingRequest();
+        pastBooking.setStatus(BookingStatus.APPROVED);
+        pastBooking.setEndDate(LocalDate.now().minusDays(5));
+        
+        ps5.setAvailable(true);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(ps5));
+        when(bookingRepository.findByItemId(1L)).thenReturn(List.of(pastBooking));
+        when(itemRepository.save(any(Item.class))).thenReturn(ps5);
+
+        Item result = itemService.updateItemSettings(1L, 1L, false, null);
+
+        assertFalse(result.getAvailable());
+        verify(itemRepository).save(ps5);
+    }
+
+    @Test
+    void updateItemSettings_DeactivateWithRejectedBooking_ShouldSucceed() {
+        BookingRequest rejectedBooking = new BookingRequest();
+        rejectedBooking.setStatus(BookingStatus.REJECTED);
+        rejectedBooking.setEndDate(LocalDate.now().plusDays(5));
+        
+        ps5.setAvailable(true);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(ps5));
+        when(bookingRepository.findByItemId(1L)).thenReturn(List.of(rejectedBooking));
+        when(itemRepository.save(any(Item.class))).thenReturn(ps5);
+
+        Item result = itemService.updateItemSettings(1L, 1L, false, null);
+
+        assertFalse(result.getAvailable());
+        verify(itemRepository).save(ps5);
+    }
+
+    @Test
+    void updateItemSettings_ActivateItem_ShouldSucceed() {
+        ps5.setAvailable(false);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(ps5));
+        when(itemRepository.save(any(Item.class))).thenReturn(ps5);
+
+        Item result = itemService.updateItemSettings(1L, 1L, true, null);
+
+        assertTrue(result.getAvailable());
+        verify(itemRepository).save(ps5);
+    }
+
+    @Test
+    void updateItemSettings_MinDaysAtBoundaryLow_ShouldSucceed() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(ps5));
+        when(itemRepository.save(any(Item.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        Item result = itemService.updateItemSettings(1L, 1L, null, 1);
+
+        assertEquals(1, result.getMinRentalDays());
+        verify(itemRepository).save(ps5);
+    }
+
+    @Test
+    void updateItemSettings_MinDaysAtBoundaryHigh_ShouldSucceed() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(ps5));
+        when(itemRepository.save(any(Item.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        Item result = itemService.updateItemSettings(1L, 1L, null, 30);
+
+        assertEquals(30, result.getMinRentalDays());
+        verify(itemRepository).save(ps5);
     }
 }

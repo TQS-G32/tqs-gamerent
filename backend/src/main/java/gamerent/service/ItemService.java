@@ -3,6 +3,9 @@ package gamerent.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import gamerent.data.Item;
 import gamerent.data.ItemRepository;
+import gamerent.data.BookingRepository;
+import gamerent.data.BookingRequest;
+import gamerent.data.BookingStatus;
 import gamerent.data.User;
 import org.springframework.stereotype.Service;
 import java.util.ArrayList;
@@ -13,11 +16,13 @@ import java.util.Random;
 public class ItemService {
     private final ItemRepository itemRepository;
     private final IgdbService igdbService;
+    private final BookingRepository bookingRepository;
     private final Random random = new Random();
 
-    public ItemService(ItemRepository itemRepository, IgdbService igdbService) {
+    public ItemService(ItemRepository itemRepository, IgdbService igdbService, BookingRepository bookingRepository) {
         this.itemRepository = itemRepository;
         this.igdbService = igdbService;
+        this.bookingRepository = bookingRepository;
     }
 
     public List<Item> getAllItems() {
@@ -67,16 +72,8 @@ public class ItemService {
     }
 
     public List<Item> searchItems(String query, String category) {
-        if (query != null && !query.isEmpty() && category != null && !category.isEmpty()) {
-            // Use fuzzy search for both query and category
-            return itemRepository.fuzzySearchByNameAndCategory(query, category);
-        } else if (query != null && !query.isEmpty()) {
-            // Use fuzzy search for name (handles partial matches like "playstatio")
-            return itemRepository.fuzzySearchByName(query);
-        } else if (category != null && !category.isEmpty()) {
-            return itemRepository.findByCategoryIgnoreCase(category);
-        }
-        return getAllItems();
+        // Delegate to searchAllItemsByNameAndCategory for consistency
+        return searchAllItemsByNameAndCategory(query, category);
     }
 
     public List<Item> searchItemsPaginated(String query, String category, int page, int pageSize) {
@@ -122,8 +119,18 @@ public class ItemService {
 
             Item item = new Item(name, description, null, imageUrl, owner);
             item.setCategory("Game");
-            double price = getRandomPrice();
-            item.setPricePerDay(price);
+            // Only the first 20 games are set as rentable by default
+            if (i < 20) {
+                double price = getRandomPrice();
+                item.setPricePerDay(price);
+                item.setAvailable(true);
+                item.setMinRentalDays(1);
+            } else {
+                // Appear in catalog but not rentable
+                item.setPricePerDay(null);
+                item.setAvailable(false);
+                item.setMinRentalDays(1);
+            }
             
             items.add(item);
         }
@@ -140,7 +147,10 @@ public class ItemService {
             Item console = new Item(consoleName, "Gaming console for rent. High performance and great selection of games.", null, 
                 imageUrl, owner);
             console.setCategory("Console");
+            // mark consoles as rentable by default
             console.setPricePerDay(getRandomPriceForConsole());
+            console.setAvailable(true);
+            console.setMinRentalDays(1);
             items.add(console);
         }
         
@@ -158,11 +168,59 @@ public class ItemService {
             Item accessory = new Item(accessoryName, "Quality gaming accessory to enhance your gaming experience.", null,
                 imageUrl, owner);
             accessory.setCategory("Accessory");
+            // accessories set as rentable by default
             accessory.setPricePerDay(getRandomPriceForAccessory());
+            accessory.setAvailable(true);
+            accessory.setMinRentalDays(1);
             items.add(accessory);
         }
 
         itemRepository.saveAll(items);
+    }
+
+    // Owner-only update of availability and minimum rental days
+    public Item updateItemSettings(Long itemId, Long ownerId, Boolean available, Integer minRentalDays) {
+        Item item = itemRepository.findById(itemId).orElseThrow(() -> new RuntimeException("Item not found"));
+        if (item.getOwner() == null || !item.getOwner().getId().equals(ownerId)) {
+            throw new RuntimeException("Unauthorized: You are not the owner of this item");
+        }
+
+        updateMinimalRentalDays(item, minRentalDays);
+        updateAvailability(item, available, itemId);
+
+        return itemRepository.save(item);
+    }
+
+    private void updateMinimalRentalDays(Item item, Integer minRentalDays) {
+        if (minRentalDays != null) {
+            if (minRentalDays < 1 || minRentalDays > 30) {
+                throw new RuntimeException("Minimum rental days must be between 1 and 30");
+            }
+            item.setMinRentalDays(minRentalDays);
+        }
+    }
+
+    private void updateAvailability(Item item, Boolean available, Long itemId) {
+        if (available == null) {
+            return;
+        }
+
+        if (available) {
+            item.setAvailable(true);
+        } else {
+            checkActiveBookingsBeforeDeactivation(itemId);
+            item.setAvailable(false);
+        }
+    }
+
+    private void checkActiveBookingsBeforeDeactivation(Long itemId) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        for (BookingRequest b : bookingRepository.findByItemId(itemId)) {
+            if ((b.getStatus() == BookingStatus.APPROVED || b.getStatus() == BookingStatus.PENDING) &&
+                (b.getEndDate() != null && !b.getEndDate().isBefore(today))) {
+                throw new RuntimeException("Item has active or confirmed bookings and cannot be set to Inactive");
+            }
+        }
     }
 
     private double getRandomPrice() {

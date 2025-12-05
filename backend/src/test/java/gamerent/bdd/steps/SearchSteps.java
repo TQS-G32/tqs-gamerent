@@ -2,8 +2,6 @@ package gamerent.bdd.steps;
 
 import gamerent.data.Item;
 import gamerent.data.ItemRepository;
-import gamerent.data.User;
-import gamerent.data.UserRepository;
 import gamerent.service.ItemService;
 import io.cucumber.datatable.DataTable;
 import io.cucumber.java.en.Given;

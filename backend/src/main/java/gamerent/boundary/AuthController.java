@@ -2,9 +2,7 @@ package gamerent.boundary;
 
 import gamerent.data.User;
 import gamerent.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -30,8 +28,11 @@ public class AuthController {
     private static final String ID_KEY = "id";
     private static final String NOT_AUTHENTICATED_MSG = "Not authenticated";
 
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
+
+    public AuthController(UserService userService) {
+        this.userService = userService;
+    }
 
     @PostMapping("/register")
     public ResponseEntity<Object> register(@RequestBody User user) {
@@ -87,10 +88,6 @@ public class AuthController {
         if (session == null) return ResponseEntity.status(401).body(NOT_AUTHENTICATED_MSG);
         Object uid = session.getAttribute(USER_ID_KEY);
         if (uid == null) return ResponseEntity.status(401).body(NOT_AUTHENTICATED_MSG);
-
-        Long userId = null;
-        if (uid instanceof Long) userId = (Long) uid;
-        else if (uid instanceof Integer) userId = ((Integer) uid).longValue();
 
         User user = userService.findByEmail((String) session.getAttribute(USER_EMAIL_KEY)).orElse(null);
         if (user == null) return ResponseEntity.status(401).body(NOT_AUTHENTICATED_MSG);

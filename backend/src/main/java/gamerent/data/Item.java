@@ -16,6 +16,11 @@ public class Item {
     private String imageUrl;
     
     private Double pricePerDay;
+    // Whether the item is available for renting (Active) or temporarily unavailable (Inactive)
+    private Boolean available = false;
+
+    // Minimum rental period in days (1..30). Null or 1 means no special minimum.
+    private Integer minRentalDays = 1;
 
     @ManyToOne
     @JoinColumn(name = "owner_id")
@@ -67,6 +72,19 @@ public class Item {
     }
     public void setPricePerDay(Double pricePerDay) {
         this.pricePerDay = pricePerDay;
+    }
+    public Boolean getAvailable() {
+        return available != null && available;
+    }
+    public void setAvailable(Boolean available) {
+        this.available = available;
+    }
+
+    public Integer getMinRentalDays() {
+        return minRentalDays == null ? 1 : minRentalDays;
+    }
+    public void setMinRentalDays(Integer minRentalDays) {
+        this.minRentalDays = minRentalDays;
     }
     public User getOwner() {
         return owner;
