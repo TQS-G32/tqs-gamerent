@@ -408,5 +408,43 @@ class ItemServiceTest {
 
         assertEquals(30, result.getMinRentalDays());
         verify(itemRepository).save(ps5);
+    @Test
+    void populateFromIGDB_WithGames_ShouldSaveItems() {
+        String mockGameJson = """
+            [
+                {
+                    "id": 1,
+                    "name": "Test Game",
+                    "summary": "A test game",
+                    "cover": {
+                        "url": "//images.igdb.com/igdb/image/upload/t_thumb/test.jpg"
+                    }
+                }
+            ]
+            """;
+        
+        com.fasterxml.jackson.databind.JsonNode[] games = new com.fasterxml.jackson.databind.JsonNode[1];
+        try {
+            games[0] = new com.fasterxml.jackson.databind.ObjectMapper().readTree(mockGameJson).get(0);
+        } catch (Exception e) {
+            // Ignore
+        }
+
+        when(igdbService.getPopularGames(0)).thenReturn(java.util.Arrays.asList(games));
+        when(itemRepository.saveAll(any())).thenReturn(List.of());
+
+        itemService.populateFromIGDB(0, owner);
+
+        verify(itemRepository, times(1)).saveAll(any());
+    }
+
+    @Test
+    void populateFromIGDB_ShouldSaveConsolesAndAccessories() {
+        when(igdbService.getPopularGames(0)).thenReturn(List.of());
+        when(itemRepository.saveAll(any())).thenReturn(List.of());
+
+        itemService.populateFromIGDB(0, owner);
+
+        verify(itemRepository, times(1)).saveAll(any());
     }
 }

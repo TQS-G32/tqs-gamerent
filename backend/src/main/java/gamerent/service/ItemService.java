@@ -1,14 +1,22 @@
 package gamerent.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import gamerent.data.Item;
 import gamerent.data.ItemRepository;
 import gamerent.data.BookingRepository;
 import gamerent.data.BookingRequest;
 import gamerent.data.BookingStatus;
 import gamerent.data.User;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
@@ -87,7 +95,7 @@ public class ItemService {
     public int getSearchResultCount(String query, String category) {
         return searchItems(query, category).size();
     }
-    
+
     public List<Item> getItemsByOwner(Long ownerId) {
         return itemRepository.findByOwnerId(ownerId);
     }
@@ -96,17 +104,17 @@ public class ItemService {
         item.setOwner(owner);
         return itemRepository.save(item);
     }
-    
+
     public Item getItem(Long id) {
         return itemRepository.findById(id).orElseThrow(() -> new RuntimeException("Item not found"));
     }
 
     public void populateFromIGDB(int limit, User owner) {
         List<Item> items = new ArrayList<>();
-        
+
         // Carrega jogos da IGDB
         List<JsonNode> games = igdbService.getPopularGames(limit);
-        
+
         for (int i = 0; i < games.size(); i++) {
             JsonNode game = games.get(i);
             String name = game.get("name").asText();
@@ -134,26 +142,30 @@ public class ItemService {
             
             items.add(item);
         }
-        
-        // Adiciona consoles com fundo escuro e nome
-        String[] consoles = {
-            "PlayStation 5", "PlayStation 4", "Xbox Series X", "Xbox Series S", "Xbox One",
-            "Nintendo Switch", "Nintendo Switch OLED", "Nintendo Switch Lite",
-            "Steam Deck", "PlayStation Vita", "Nintendo 3DS"
-        };
-        
-        for (String consoleName : consoles) {
-            String imageUrl = "https://dummyimage.com/400x500/1a1a1a/ffffff?text=" + consoleName.replace(" ", "+");
-            Item console = new Item(consoleName, "Gaming console for rent. High performance and great selection of games.", null, 
-                imageUrl, owner);
-            console.setCategory("Console");
-            // mark consoles as rentable by default
-            console.setPricePerDay(getRandomPriceForConsole());
-            console.setAvailable(true);
-            console.setMinRentalDays(1);
-            items.add(console);
+
+        // Adiciona consoles com imagens reais do IGDB
+        List<JsonNode> platforms = fetchPopularPlatforms();
+        for (JsonNode platform : platforms) {
+            String consoleName = platform.get("name").asText();
+            String imageUrl = null;
+
+            if (platform.has("platform_logo") && platform.get("platform_logo").has("url")) {
+                String url = platform.get("platform_logo").get("url").asText();
+                if (url.startsWith("//")) {
+                    url = "https:" + url;
+                }
+                imageUrl = url;
+            }
+
+            if (imageUrl != null) {
+                Item console = new Item(consoleName, "Gaming console for rent. High performance and great selection of games.", null,
+                    imageUrl, owner);
+                console.setCategory("Console");
+                console.setPricePerDay(getRandomPriceForConsole());
+                items.add(console);
+            }
         }
-        
+
         // Adiciona acessórios com fundo escuro e nome
         String[] accessories = {
             "PlayStation 5 Controller", "Xbox Controller", "Nintendo Pro Controller",
@@ -162,7 +174,7 @@ public class ItemService {
             "Game Pass Subscription Card", "PlayStation Plus Card", "Gaming Chair",
             "Cooling Fan", "Laptop Stand", "Mouse Pad"
         };
-        
+
         for (String accessoryName : accessories) {
             String imageUrl = "https://dummyimage.com/400x500/2a2a2a/ffffff?text=" + accessoryName.replace(" ", "+");
             Item accessory = new Item(accessoryName, "Quality gaming accessory to enhance your gaming experience.", null,
@@ -219,7 +231,38 @@ public class ItemService {
             if ((b.getStatus() == BookingStatus.APPROVED || b.getStatus() == BookingStatus.PENDING) &&
                 (b.getEndDate() != null && !b.getEndDate().isBefore(today))) {
                 throw new RuntimeException("Item has active or confirmed bookings and cannot be set to Inactive");
+    }
+          
+    private List<JsonNode> fetchPopularPlatforms() {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            String clientId = System.getenv("IGDB_CLIENT_ID");
+            String authToken = System.getenv("IGDB_AUTH_TOKEN");
+            headers.set("Client-ID", clientId != null ? clientId : "");
+            headers.set("Authorization", authToken != null ? authToken : "");
+            headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+
+            // Fetch specific modern consoles: PlayStation 5 (167), Xbox Series X|S (169), Nintendo Switch (130)
+            String body = "where id = (167, 169, 130, 48, 49); fields id,name,platform_logo.url;";
+            HttpEntity<String> entity = new HttpEntity<>(body, headers);
+
+            RestTemplate restTemplate = new RestTemplate();
+            ResponseEntity<String> response = restTemplate.exchange("https://api.igdb.com/v4/platforms", HttpMethod.POST, entity, String.class);
+
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode[] platforms = mapper.readValue(response.getBody(), JsonNode[].class);
+
+            List<JsonNode> result = new ArrayList<>();
+            for (JsonNode platform : platforms) {
+                if (platform.has("platform_logo") && platform.get("platform_logo").has("url")) {
+                    result.add(platform);
+                }
             }
+
+            return result;
+        } catch (Exception e) {
+            System.err.println("Error fetching popular platforms: " + e.getMessage());
+            return Collections.emptyList();
         }
     }
 
@@ -227,12 +270,12 @@ public class ItemService {
         // Random price between 1.99 and 5.99
         return Math.round((1.99 + (random.nextDouble() * 4)) * 100) / 100.0;
     }
-    
+
     private double getRandomPriceForConsole() {
         // Random price between 8.99 and 15.99 for consoles
         return Math.round((8.99 + (random.nextDouble() * 7)) * 100) / 100.0;
     }
-    
+
     private double getRandomPriceForAccessory() {
         // Random price between 0.99 and 4.99 for accessories
         return Math.round((0.99 + (random.nextDouble() * 4)) * 100) / 100.0;
