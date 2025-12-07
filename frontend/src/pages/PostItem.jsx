@@ -23,15 +23,15 @@ export default function PostItem() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  
+
   // Debounce the query
   const debouncedQuery = useDebounce(query, 500);
-  
+
   // Item Data
   const [selectedGame, setSelectedGame] = useState(null); // Raw IGDB data
   const [manualName, setManualName] = useState(""); // For Manual/Accessory
-  const [selectedPlatform, setSelectedPlatform] = useState(""); 
-  
+  const [selectedPlatform, setSelectedPlatform] = useState("");
+
   const [formData, setFormData] = useState({
     pricePerDay: "",
     description: "",
@@ -62,7 +62,7 @@ export default function PostItem() {
         // Skip search for accessories
         setStep(2);
         setFormData(prev => ({
-            ...prev, 
+            ...prev,
             category: "Accessory",
             imageUrl: "" // Start empty for accessory
         }));
@@ -78,7 +78,7 @@ export default function PostItem() {
         const data = await res.json();
         setResults(data);
     } catch (err) {
-        console.error("Search failed", err);
+        window.console.error("Search failed", err);
     } finally {
         setLoading(false);
     }
@@ -96,11 +96,16 @@ export default function PostItem() {
     
     if (rawUrl) {
         imageUrl = rawUrl.startsWith("//") ? "https:" + rawUrl : rawUrl;
-        imageUrl = imageUrl.replace("t_thumb", "t_cover_big").replace("t_logo_med", "t_logo_huge"); 
+        // Use t_720p for games, t_logo_huge for consoles
+        if (itemType === "Game") {
+            imageUrl = imageUrl.replace("t_thumb", "t_720p");
+        } else {
+            imageUrl = imageUrl.replace("t_logo_med", "t_logo_huge");
+        }
     }
-    
+
     setSelectedGame(game);
-    
+
     // Pre-select platform if only one exists
     if (itemType === "Game" && game.platforms && game.platforms.length > 0) {
         setSelectedPlatform(game.platforms[0].name);
@@ -128,9 +133,9 @@ export default function PostItem() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     let finalName = "";
-    
+
     if (itemType === "Accessory") {
         finalName = manualName;
     } else {
@@ -163,7 +168,7 @@ export default function PostItem() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(item)
         });
-    
+
         if (res.ok) {
           navigate("/");
         } else {
@@ -194,21 +199,21 @@ export default function PostItem() {
 
   return (
     <div className="container" style={{maxWidth: '800px', marginTop: '40px'}}>
-      
+
       {/* Step 0: Type Selection */}
       {step === 0 && (
         <div style={{textAlign: 'center'}}>
             <h2 style={{marginBottom: '30px'}}>What are you listing today?</h2>
             <div style={{display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap'}}>
                 {['Game', 'Console', 'Accessory'].map(type => (
-                    <div 
+                    <div
                         key={type}
                         onClick={() => handleTypeSelection(type)}
                         style={{
-                            padding: '40px', 
-                            border: '2px solid #eee', 
-                            borderRadius: '8px', 
-                            cursor: 'pointer', 
+                            padding: '40px',
+                            border: '2px solid #eee',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
                             width: '200px',
                             transition: 'all 0.2s',
                             background: 'white'
@@ -239,33 +244,42 @@ export default function PostItem() {
                  <button className="btn btn-outline" onClick={() => setStep(0)} style={{marginRight: '20px'}}>← Back</button>
                  <h2 style={{margin: 0}}>Search for your {itemType}</h2>
             </div>
-            
+
             <div style={{display: 'flex', gap: '10px', marginBottom: '30px'}}>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   className="form-input"
-                  value={query} 
-                  onChange={(e) => setQuery(e.target.value)} 
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
                   placeholder={`Start typing ${itemType} name...`}
                   autoFocus
                 />
             </div>
-          
+
             {loading && <p style={{color: '#888'}}>Searching...</p>}
-            
+
             {!loading && results.length > 0 && <h4 style={{marginBottom: '16px', color: '#666'}}>Select a match:</h4>}
             <div className="item-grid">
                 {results.map((game) => {
                     const rawUrl = getImage(game);
-                    const displayUrl = rawUrl ? (rawUrl.startsWith("//") ? "https:" + rawUrl : rawUrl) : null;
+                    let displayUrl = rawUrl ? (rawUrl.startsWith("//") ? "https:" + rawUrl : rawUrl) : null;
+                    
+                    // Apply quality transformation based on item type
+                    if (displayUrl) {
+                        if (itemType === "Game") {
+                            displayUrl = displayUrl.replace("t_thumb", "t_720p");
+                        } else {
+                            displayUrl = displayUrl.replace("t_logo_med", "t_logo_huge");
+                        }
+                    }
 
                     return (
                         <div key={game.id} className="item-card" onClick={() => selectGame(game)}>
                             <div className="card-image">
                                 {displayUrl ? (
-                                <img 
-                                    src={displayUrl} 
-                                    alt={game.name} 
+                                <img
+                                    src={displayUrl}
+                                    alt={game.name}
                                 />
                                 ) : (
                                     <div style={{width: '100%', height: '100%', background: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>No Image</div>
@@ -279,7 +293,7 @@ export default function PostItem() {
                     );
                 })}
             </div>
-            
+
             {!loading && results.length === 0 && query && (
                 <div style={{textAlign: 'center', color: '#888', marginTop: '40px'}}>
                     <p>No results found.</p>
@@ -295,25 +309,25 @@ export default function PostItem() {
                 if (itemType === 'Accessory') setStep(0);
                 else setStep(1);
             }} style={{marginBottom: '20px'}}>← Back</button>
-            
+
             <div className="sidebar-card">
-                
+
                 {/* Image Upload Section */}
                 <div style={{marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid #eee'}}>
                     <h4 style={{marginTop: 0, marginBottom: '12px'}}>Photos</h4>
                     <div style={{display: 'flex', gap: '16px', alignItems: 'flex-start'}}>
                         {formData.imageUrl ? (
                             <div style={{position: 'relative', width: '120px', height: '120px'}}>
-                                <img 
-                                    src={formData.imageUrl} 
-                                    alt="Preview" 
-                                    style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px', border: '1px solid #ddd'}} 
+                                <img
+                                    src={formData.imageUrl}
+                                    alt="Preview"
+                                    style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px', border: '1px solid #ddd'}}
                                 />
-                                <button 
+                                <button
                                     onClick={() => setFormData({...formData, imageUrl: ""})}
                                     style={{
-                                        position: 'absolute', top: '-8px', right: '-8px', 
-                                        background: 'white', border: '1px solid #ccc', borderRadius: '50%', 
+                                        position: 'absolute', top: '-8px', right: '-8px',
+                                        background: 'white', border: '1px solid #ccc', borderRadius: '50%',
                                         width: '24px', height: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
                                     }}
                                 >
@@ -322,8 +336,8 @@ export default function PostItem() {
                             </div>
                         ) : (
                             <label style={{
-                                width: '120px', height: '120px', border: '2px dashed #ccc', borderRadius: '4px', 
-                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
+                                width: '120px', height: '120px', border: '2px dashed #ccc', borderRadius: '4px',
+                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                                 cursor: 'pointer', color: 'var(--primary)', background: '#fafafa'
                             }}>
                                 <span style={{fontSize: '24px'}}>+</span>
@@ -331,7 +345,7 @@ export default function PostItem() {
                                 <input type="file" accept="image/*" onChange={handleImageUpload} style={{display: 'none'}} />
                             </label>
                         )}
-                        
+
                         <div style={{flex: 1}}>
                              <h3 style={{margin: '0 0 4px 0'}}>
                                 {itemType === "Accessory" ? "New Accessory" : selectedGame?.name}
@@ -347,12 +361,12 @@ export default function PostItem() {
                 </div>
 
                 <form onSubmit={handleSubmit}>
-                    
+
                     {/* Manual Name Input for Accessories */}
                     {itemType === "Accessory" && (
                         <div className="form-group">
                             <label className="form-label">Item Name</label>
-                            <input 
+                            <input
                                 type="text"
                                 className="form-input"
                                 value={manualName}
@@ -362,12 +376,12 @@ export default function PostItem() {
                             />
                         </div>
                     )}
-                    
+
                     {/* Platform Selection for Games */}
                     {itemType === "Game" && (
                         <div className="form-group">
                             <label className="form-label">Platform</label>
-                            <select 
+                            <select
                                 className="form-select"
                                 value={selectedPlatform}
                                 onChange={(e) => setSelectedPlatform(e.target.value)}
@@ -383,7 +397,7 @@ export default function PostItem() {
 
                     <div className="form-group">
                         <label className="form-label">Description</label>
-                        <textarea 
+                        <textarea
                             className="form-textarea"
                             value={formData.description}
                             onChange={(e) => setFormData({...formData, description: e.target.value})}
@@ -394,8 +408,8 @@ export default function PostItem() {
 
                     <div className="form-group">
                         <label className="form-label">Price per Day (€)</label>
-                        <input 
-                            type="number" 
+                        <input
+                            type="number"
                             step="0.50"
                             min="0"
                             className="form-input"
