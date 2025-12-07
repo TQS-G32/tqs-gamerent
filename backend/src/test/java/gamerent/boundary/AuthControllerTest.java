@@ -15,7 +15,6 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.mock.web.MockHttpSession;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 
 import java.util.Map;
 
@@ -38,7 +37,7 @@ public class AuthControllerTest {
     private ObjectMapper objectMapper;
 
     @Test
-    public void registerLoginMeLogoutFlow() throws Exception {
+    void registerLoginMeLogoutFlow() throws Exception {
         // Register
         Map<String, String> reg = Map.of(
                 "name", "it-user",
@@ -69,8 +68,8 @@ public class AuthControllerTest {
         mocked.setEmail("it-user@example.com");
         mocked.setName("it-user");
         mocked.setRole("USER");
-        when(userService.findByEmail(eq("it-user@example.com"))).thenReturn(java.util.Optional.of(mocked));
-        when(userService.checkPassword(eq(mocked), eq("itpass"))).thenReturn(true);
+        when(userService.findByEmail("it-user@example.com")).thenReturn(java.util.Optional.of(mocked));
+        when(userService.checkPassword(mocked, "itpass")).thenReturn(true);
 
         mockMvc.perform(post("/api/auth/login").session(session)
             .contentType(MediaType.APPLICATION_JSON)
@@ -83,8 +82,8 @@ public class AuthControllerTest {
                 .andReturn();
 
         String meBody = meRes.getResponse().getContentAsString();
-        Map<?,?> meMap = objectMapper.readValue(meBody, Map.class);
-        assertThat(meMap.get("email")).isEqualTo("it-user@example.com");
+        Map<String, Object> meMap = objectMapper.readValue(meBody, Map.class);
+        assertThat(meMap).containsEntry("email", "it-user@example.com");
 
         // Logout
         mockMvc.perform(post("/api/auth/logout").session(session))

@@ -57,7 +57,7 @@ public class BookingFlowTest {
     private BookingService bookingService;
 
     @Test
-    public void ownerListingAndBookingFlow() throws Exception {
+    void ownerListingAndBookingFlow() throws Exception {
         // Prepare users
         User owner = new User(); owner.setId(10L); owner.setEmail("ownerA@example.com"); owner.setName("ownerA"); owner.setRole("USER");
         User renter = new User(); renter.setId(20L); renter.setEmail("renterB@example.com"); renter.setName("renterB"); renter.setRole("USER");
@@ -75,7 +75,7 @@ public class BookingFlowTest {
 
         // Login owner - stub user lookup and password check
         when(userService.findByEmail("ownerA@example.com")).thenReturn(java.util.Optional.of(owner));
-        when(userService.checkPassword(eq(owner), eq("passA"))).thenReturn(true);
+        when(userService.checkPassword(owner, "passA")).thenReturn(true);
         MockHttpSession sessionA = new MockHttpSession();
         mockMvc.perform(post("/api/auth/login").session(sessionA).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(Map.of("email","ownerA@example.com","password","passA"))))
                 .andExpect(status().isOk());
@@ -107,7 +107,7 @@ public class BookingFlowTest {
         mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(Map.of("name","renterB","email","renterB@example.com","password","passB")))).andExpect(status().isOk());
 
         when(userService.findByEmail("renterB@example.com")).thenReturn(java.util.Optional.of(renter));
-        when(userService.checkPassword(eq(renter), eq("passB"))).thenReturn(true);
+        when(userService.checkPassword(renter, "passB")).thenReturn(true);
         MockHttpSession sessionB = new MockHttpSession();
         mockMvc.perform(post("/api/auth/login").session(sessionB).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(Map.of("email","renterB@example.com","password","passB")))).andExpect(status().isOk());
 
@@ -119,7 +119,7 @@ public class BookingFlowTest {
         booking.setStartDate(LocalDate.now().plusDays(1));
         booking.setEndDate(LocalDate.now().plusDays(3));
         booking.setStatus(BookingStatus.PENDING);
-        when(bookingService.createBooking(eq(100L), eq(20L), any(LocalDate.class), any(LocalDate.class))).thenReturn(booking);
+        when(bookingService.createBooking(100L, 20L, booking.getStartDate(), booking.getEndDate())).thenReturn(booking);
 
         Map<String,Object> bookingReq = Map.of("itemId", createdResp.getId(), "startDate", booking.getStartDate().toString(), "endDate", booking.getEndDate().toString());
         String bookingRes = mockMvc.perform(post("/api/bookings").session(sessionB).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(bookingReq))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
@@ -135,7 +135,7 @@ public class BookingFlowTest {
         // Owner approves booking - mock updateStatus
         BookingRequest approved = booking;
         approved.setStatus(BookingStatus.APPROVED);
-        when(bookingService.updateStatus(eq(555L), eq(BookingStatus.APPROVED), eq(10L))).thenReturn(approved);
+        when(bookingService.updateStatus(555L, BookingStatus.APPROVED, 10L)).thenReturn(approved);
         mockMvc.perform(put("/api/bookings/" + 555 + "/status").session(sessionA).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(Map.of("status","APPROVED"))))
                 .andExpect(status().isOk());
 

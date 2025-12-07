@@ -9,11 +9,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 @Service
 public class IgdbService {
     private static final String GAMES_URL = "https://api.igdb.com/v4/games";
     private static final String PLATFORMS_URL = "https://api.igdb.com/v4/platforms";
+    private static final Logger logger = Logger.getLogger(IgdbService.class.getName());
     private static final String PLATFORM_LOGOS_URL = "https://api.igdb.com/v4/platform_logos";
     
     @Value("${igdb.client-id}")
@@ -60,7 +63,7 @@ public class IgdbService {
             
             return responseBody;
         } catch (Exception e) {
-            System.err.println("Error searching " + type + ": " + e.getMessage());
+            logger.log(Level.SEVERE, e, () -> "Error searching " + type + ": " + e.getMessage());
             return "[]";
         }
     }
@@ -114,7 +117,7 @@ public class IgdbService {
 
     public List<JsonNode> getPopularGames(int limit) {
         if (isConfigMissing()) {
-            System.out.println("IGDB credentials missing. Skipping API call.");
+            logger.log(Level.INFO, "IGDB credentials missing. Skipping API call.");
             return Collections.emptyList();
         }
 
@@ -133,7 +136,7 @@ public class IgdbService {
             JsonNode[] games = mapper.readValue(response.getBody(), JsonNode[].class);
             return List.of(games);
         } catch (Exception e) {
-            System.err.println("Error fetching popular games: " + e.getMessage());
+            logger.log(Level.SEVERE, e, () -> "Error fetching popular games: " + e.getMessage());
             return Collections.emptyList();
         }
     }

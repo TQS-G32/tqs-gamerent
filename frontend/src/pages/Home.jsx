@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 const CATEGORIES = ["All", "Game", "Console", "Accessory"];
-const PAGE_SIZE = 10;
 
 export default function Home() {
   const [items, setItems] = useState([]);
@@ -14,6 +13,7 @@ export default function Home() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [rentableOnly, setRentableOnly] = useState(false);
 
   useEffect(() => {
     setCurrentPage(0); // Reset to first page when search/category changes
@@ -21,8 +21,9 @@ export default function Home() {
 
   useEffect(() => {
     setLoading(true);
-    // Always use /api/items/catalog which shows ALL items (with or without rental listings)
+    // Use /api/items/catalog; optionally request only rentable items
     let url = `/api/items/catalog?page=${currentPage}`;
+    if (rentableOnly) url += `&rentable=true`;
     
     if (selectedCategory !== "All") {
       url += `&category=${encodeURIComponent(selectedCategory)}`;
@@ -47,7 +48,7 @@ export default function Home() {
         setError(err.message);
         setLoading(false);
       });
-  }, [q, currentPage, selectedCategory]);
+  }, [q, currentPage, selectedCategory, rentableOnly]);
 
   const handleNextPage = () => {
     if (currentPage < totalPages - 1) {
@@ -63,7 +64,7 @@ export default function Home() {
 
   return (
     <div className="container">
-      {/* Category Filter */}
+      {/* Filter Section */}
       <div style={{marginTop: '24px', marginBottom: '24px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center'}}>
         <span style={{fontWeight: 600, color: '#666', marginRight: '8px'}}>Filter:</span>
         {CATEGORIES.map((cat) => (
@@ -85,6 +86,22 @@ export default function Home() {
             {cat}
           </button>
         ))}
+        <button
+          onClick={() => { setRentableOnly(!rentableOnly); setCurrentPage(0); }}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '20px',
+            border: rentableOnly ? 'none' : '1px solid #ddd',
+            background: rentableOnly ? 'var(--primary)' : 'white',
+            color: rentableOnly ? 'white' : '#666',
+            cursor: 'pointer',
+            fontWeight: 500,
+            fontSize: '0.9rem',
+            transition: 'all 0.2s'
+          }}
+        >
+          Rentable
+        </button>
       </div>
 
       {loading && <div style={{padding: '40px', textAlign: 'center'}}>Loading items...</div>}
@@ -98,14 +115,21 @@ export default function Home() {
         </div>
       )}
 
-      <div className="item-grid">
+      {/* Item Count */}
+      {!loading && !error && items.length > 0 && (
+        <div style={{fontSize: '0.9rem', color: '#666', marginBottom: '20px'}}>
+          Showing <strong>{totalCount}</strong> item{totalCount !== 1 ? 's' : ''}
+        </div>
+      )}
+
+            <div className="item-grid">
         {items.map((item) => (
           <Link to={`/item/${item.id}`} key={item.id} className="item-card">
             <div className="card-image">
                 <img src={item.imageUrl || "https://via.placeholder.com/300x400?text=No+Image"} alt={item.name} />
             </div>
             <div className="card-price">
-              {item.pricePerDay != null ? (
+              {(item.pricePerDay != null && item.available) ? (
                 <>€{item.pricePerDay.toFixed(2)}</>
               ) : (
                 <span style={{color:'#888', fontSize:'0.9rem'}}>Not for rent</span>
