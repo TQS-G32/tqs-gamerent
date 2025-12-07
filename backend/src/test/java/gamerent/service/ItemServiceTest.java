@@ -408,6 +408,8 @@ class ItemServiceTest {
 
         assertEquals(30, result.getMinRentalDays());
         verify(itemRepository).save(ps5);
+    }
+
     @Test
     void populateFromIGDB_WithGames_ShouldSaveItems() {
         String mockGameJson = """

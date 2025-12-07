@@ -231,6 +231,8 @@ public class ItemService {
             if ((b.getStatus() == BookingStatus.APPROVED || b.getStatus() == BookingStatus.PENDING) &&
                 (b.getEndDate() != null && !b.getEndDate().isBefore(today))) {
                 throw new RuntimeException("Item has active or confirmed bookings and cannot be set to Inactive");
+            }
+        }
     }
           
     private List<JsonNode> fetchPopularPlatforms() {
