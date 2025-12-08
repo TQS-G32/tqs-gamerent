@@ -160,5 +160,74 @@ class ReviewServiceTest {
         RuntimeException ex = assertThrows(RuntimeException.class, () -> reviewService.addReview(123L, review));
         assertEquals("Only the renter can review this item", ex.getMessage());
     }
+
+    @Test
+    void addReview_MissingRating_ShouldFail() {
+        Review review = new Review();
+        review.setBookingId(approvedPastBooking.getId());
+        review.setTargetType(ReviewTargetType.ITEM);
+        // rating null
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> reviewService.addReview(approvedPastBooking.getUserId(), review));
+        assertEquals("rating must be between 1 and 5", ex.getMessage());
+    }
+
+    @Test
+    void addReview_BookingNotApproved_ShouldFail() {
+        BookingRequest pending = new BookingRequest();
+        pending.setId(3L);
+        pending.setUserId(20L);
+        pending.setItemId(item.getId());
+        pending.setStatus(BookingStatus.PENDING);
+
+        Review review = new Review();
+        review.setBookingId(pending.getId());
+        review.setTargetType(ReviewTargetType.ITEM);
+        review.setRating(5);
+
+        when(bookingRepository.findById(pending.getId())).thenReturn(Optional.of(pending));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> reviewService.addReview(pending.getUserId(), review));
+        assertEquals("Booking must be approved to review", ex.getMessage());
+    }
+
+    @Test
+    void addReview_BeforeEndDate_ShouldFail() {
+        BookingRequest future = new BookingRequest();
+        future.setId(4L);
+        future.setUserId(20L);
+        future.setItemId(item.getId());
+        future.setStatus(BookingStatus.APPROVED);
+        future.setEndDate(LocalDate.now(fixedClock).plusDays(2));
+
+        Review review = new Review();
+        review.setBookingId(future.getId());
+        review.setTargetType(ReviewTargetType.ITEM);
+        review.setRating(5);
+
+        when(bookingRepository.findById(future.getId())).thenReturn(Optional.of(future));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> reviewService.addReview(future.getUserId(), review));
+        assertEquals("You can only review after the rental period has ended", ex.getMessage());
+    }
+
+    @Test
+    void addReview_RenterReviewsOwner_ShouldSetTargetId() {
+        Review review = new Review();
+        review.setBookingId(approvedPastBooking.getId());
+        review.setTargetType(ReviewTargetType.USER);
+        review.setRating(5);
+
+        when(bookingRepository.findById(approvedPastBooking.getId())).thenReturn(Optional.of(approvedPastBooking));
+        when(itemRepository.findById(item.getId())).thenReturn(Optional.of(item));
+        when(reviewRepository.findByBookingIdAndReviewerIdAndTargetTypeAndTargetId(anyLong(), anyLong(), any(), anyLong()))
+                .thenReturn(Optional.empty());
+        when(reviewRepository.save(any(Review.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Review saved = reviewService.addReview(approvedPastBooking.getUserId(), review);
+
+        assertEquals(owner.getId(), saved.getTargetId());
+        verify(reviewRepository).save(any(Review.class));
+    }
 }
 
