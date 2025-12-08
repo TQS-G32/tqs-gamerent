@@ -88,5 +88,12 @@ class ReviewServiceResponseTest {
         assertEquals("Alice", responses.get(0).reviewerName());
         assertEquals(5, responses.get(0).rating());
     }
+
+    @Test
+    void getReviewsForUser_ShouldReturnEmptyWhenNoReviews() {
+        when(reviewRepository.findByTargetTypeAndTargetId(ReviewTargetType.USER, 99L)).thenReturn(List.of());
+        List<ReviewResponse> responses = reviewService.getReviewsForUser(99L);
+        assertEquals(0, responses.size());
+    }
 }
 
