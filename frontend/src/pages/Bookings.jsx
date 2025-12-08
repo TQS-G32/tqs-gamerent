@@ -1,18 +1,86 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import StarRating from '../components/StarRating.jsx';
 
 export default function Bookings() {
   const [bookings, setBookings] = useState([]); // My Rentals
   const [requests, setRequests] = useState([]); // Incoming Requests
   const [listings, setListings] = useState([]); // My Items
+  const [listingsPage, setListingsPage] = useState(0);
+  const [listingsTotalPages, setListingsTotalPages] = useState(1);
+  const [listingsTotalCount, setListingsTotalCount] = useState(0);
+  const [listingsLoading, setListingsLoading] = useState(false);
   const [itemsMap, setItemsMap] = useState({}); // Map of itemId -> Item data
   const [activeTab, setActiveTab] = useState('listings'); // 'rentals', 'listings', 'requests'
   const [editingItemId, setEditingItemId] = useState(null); // For inline editing
   const [editForm, setEditForm] = useState({ available: true, minRentalDays: 1 });
+  const [reviewDrafts, setReviewDrafts] = useState({});
+  const [reviewMsgs, setReviewMsgs] = useState({});
+  const [bookingReviews, setBookingReviews] = useState({});
+  const listingsObserverRef = useRef(null);
+  const listingsSentinelRef = useRef(null);
   
   const userJson = window.localStorage.getItem('user');
   const currentUser = userJson ? JSON.parse(userJson) : null;
   const [isOwner, setIsOwner] = useState(false);
+
+  const draftKey = (bookingId, target) => `${bookingId}-${target}`;
+  const getDraft = (bookingId, target) => reviewDrafts[draftKey(bookingId, target)] || { rating: 0, comment: '' };
+  const setDraft = (bookingId, target, field, value) => {
+    setReviewDrafts(prev => ({
+      ...prev,
+      [draftKey(bookingId, target)]: {
+        ...(prev[draftKey(bookingId, target)] || { rating: 0, comment: '' }),
+        [field]: value
+      }
+    }));
+  };
+  const setMsg = (bookingId, target, msg) => {
+    setReviewMsgs(prev => ({ ...prev, [draftKey(bookingId, target)]: msg }));
+  };
+  const getMsg = (bookingId, target) => reviewMsgs[draftKey(bookingId, target)] || '';
+
+  const canReviewBooking = (booking) => booking.status === 'APPROVED' && new Date(booking.endDate) <= new Date();
+  const hasReview = (bookingId, targetType, targetId) => {
+    const list = bookingReviews[bookingId] || [];
+    return list.some(r => r.targetType === targetType && r.targetId === targetId && r.reviewerId === currentUser?.id);
+  };
+  const getUserReview = (bookingId, targetType, targetId) => {
+    const list = bookingReviews[bookingId] || [];
+    return list.find(r => r.targetType === targetType && r.targetId === targetId && r.reviewerId === currentUser?.id);
+  };
+
+  const submitReview = async ({ bookingId, targetType, targetId }, targetKey) => {
+    setMsg(bookingId, targetKey, '');
+    const draft = getDraft(bookingId, targetKey);
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          bookingId,
+          targetType,
+          targetId,
+          rating: Number(draft.rating),
+          comment: draft.comment
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to submit review');
+      }
+      await res.json();
+      setMsg(bookingId, targetKey, '✓ Review submitted');
+      // refresh reviews for this booking
+      fetch(`/api/reviews/booking/${bookingId}`)
+        .then(res => res.json())
+        .then(data => setBookingReviews(prev => ({ ...prev, [bookingId]: Array.isArray(data) ? data : [] })))
+        .catch(() => {});
+    } catch (e) {
+      setMsg(bookingId, targetKey, `✗ ${e.message}`);
+    }
+  };
 
   if (!currentUser) {
     return (
@@ -31,16 +99,33 @@ export default function Bookings() {
       .then(data => setBookings(data))
       .catch(err => console.error(err));
 
-    // Fetch My Listings
-    fetch('/api/items/my-items', { credentials: 'include' })
+    // Reset listings pagination
+    setListings([]);
+    setListingsPage(0);
+    setListingsTotalPages(1);
+    setListingsTotalCount(0);
+    setListingsLoading(false);
+  }, []);
+
+  // Fetch listings paginated (infinite scroll)
+  useEffect(() => {
+    if (activeTab !== 'listings') return;
+    if (listingsLoading) return;
+    if (listingsPage >= listingsTotalPages) return;
+    const ownerId = currentUser?.id || 1;
+    setListingsLoading(true);
+    fetch(`/api/items?ownerId=${ownerId}&page=${listingsPage}&pageSize=20`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
-        setListings(data);
-        // If the current user has any listings, treat them as an owner for requests
-        const ownerFlag = Array.isArray(data) && data.length > 0;
+        const newItems = Array.isArray(data.items) ? data.items : [];
+        setListings(prev => [...prev, ...newItems]);
+        const totalPages = Number.isFinite(data.totalPages) ? data.totalPages : 1;
+        setListingsTotalPages(totalPages);
+        if (Number.isFinite(data.totalCount)) {
+          setListingsTotalCount(data.totalCount);
+        }
+        const ownerFlag = ((Array.isArray(data.items) && data.items.length > 0) || (data.totalCount && data.totalCount > 0)) || (currentUser && currentUser.role === 'ADMIN');
         setIsOwner(ownerFlag || (currentUser && currentUser.role === 'ADMIN'));
-
-        // If owner, fetch incoming booking requests
         if (ownerFlag || (currentUser && currentUser.role === 'ADMIN')) {
           fetch('/api/bookings/requests', { credentials: 'include' })
             .then(res => res.json())
@@ -48,8 +133,38 @@ export default function Bookings() {
             .catch(err => console.error(err));
         }
       })
-      .catch(err => console.error(err));
-  }, []);
+      .catch(err => console.error(err))
+      .finally(() => setListingsLoading(false));
+  }, [activeTab, listingsPage]);
+
+  // Reset listings when switching to listings tab or user changes
+  useEffect(() => {
+    if (activeTab === 'listings') {
+      setListings([]);
+      setListingsPage(0);
+      setListingsTotalPages(1);
+      setListingsTotalCount(0);
+      setListingsLoading(false);
+    }
+  }, [activeTab, currentUser?.id]);
+
+  // Intersection observer for listings infinite scroll
+  useEffect(() => {
+    if (activeTab !== 'listings') return;
+    const sentinel = listingsSentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting && !listingsLoading && listingsPage + 1 < listingsTotalPages) {
+          setListingsPage((p) => p + 1);
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [activeTab, listingsLoading, listingsPage, listingsTotalPages]);
 
   // Fetch item details for all bookings/requests to display with booking info
   useEffect(() => {
@@ -67,6 +182,18 @@ export default function Bookings() {
           .catch(err => console.error(err));
       }
     });
+  }, [bookings, requests]);
+
+  useEffect(() => {
+    const ids = [...new Set([...bookings.map(b => b.id), ...requests.map(r => r.id)])];
+    if (ids.length === 0) return;
+    Promise.all(ids.map(id =>
+      fetch(`/api/reviews/booking/${id}`).then(res => res.json()).catch(() => [])
+    )).then(results => {
+      const map = {};
+      ids.forEach((id, idx) => { map[id] = Array.isArray(results[idx]) ? results[idx] : []; });
+      setBookingReviews(map);
+    }).catch(() => {});
   }, [bookings, requests]);
 
   const handleStatusUpdate = (id, status) => {
@@ -137,13 +264,15 @@ export default function Bookings() {
     return item && item.owner ? item.owner.name.charAt(0).toUpperCase() : 'U';
   };
 
+  const listingsCountDisplay = listingsTotalCount > 0 ? listingsTotalCount : listings.length;
+
   return (
     <div className="container">
       <h2 style={{marginBottom: '24px'}}>📊 My Dashboard</h2>
       
       <div className="tabs">
           <div className={`tab ${activeTab === 'listings' ? 'active' : ''}`} onClick={() => setActiveTab('listings')}>
-            📦 My Listings ({listings.length})
+            📦 My Listings ({listingsCountDisplay})
           </div>
           <div className={`tab ${activeTab === 'rentals' ? 'active' : ''}`} onClick={() => setActiveTab('rentals')}>
             🛒 My Rentals ({bookings.length})
@@ -255,6 +384,11 @@ export default function Bookings() {
                              </div>
                         </div>
                     ))}
+                    <div ref={listingsSentinelRef} style={{height:'1px'}} />
+                    {listingsLoading && <div style={{color:'#666'}}>Loading more...</div>}
+                    {!listingsLoading && listingsPage + 1 >= listingsTotalPages && listings.length > 0 && (
+                      <div style={{color:'#999'}}>End of listings.</div>
+                    )}
                 </div>
              )}
         </div>
@@ -275,33 +409,150 @@ export default function Bookings() {
                     {bookings.map(booking => {
                       const item = itemsMap[booking.itemId];
                       return (
-                        <div key={booking.id} className="sidebar-card" style={{display: 'flex', gap: '16px', alignItems: 'center'}}>
-                            <div style={{width: '80px', height: '80px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: '#eee'}}>
-                              {item && item.imageUrl ? (
-                                <img src={item.imageUrl} alt={item?.name} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
-                              ) : (
-                                <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc'}}>
-                                  Loading...
-                                </div>
-                              )}
-                            </div>
-                            
-                            <div style={{flex: 1}}>
-                                <div style={{fontWeight: 600, fontSize: '1.1rem'}}>{item ? item.name : `Item #${booking.itemId}`}</div>
-                                <div style={{color: '#666', fontSize: '0.9rem', marginTop: '4px'}}>
+                        <div
+                          key={booking.id}
+                          className="sidebar-card"
+                          style={{
+                            position:'relative',
+                            display: 'grid',
+                            gridTemplateColumns: '240px 1fr',
+                            gap: '16px',
+                            alignItems: 'flex-start'
+                          }}
+                        >
+                            {booking.status === 'APPROVED' && (
+                              <span style={{position:'absolute', top:'10px', right:'10px', color:'#2ecc71', fontWeight:700}}>✓ APPROVED</span>
+                            )}
+                            <div style={{display:'flex', flexDirection:'column', gap:'10px', minWidth:'200px'}}>
+                              <div style={{width: '100%', aspectRatio: '1 / 1', borderRadius: '8px', overflow: 'hidden', background: '#eee'}}>
+                                {item && item.imageUrl ? (
+                                  <img src={item.imageUrl} alt={item?.name} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                                ) : (
+                                  <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc'}}>
+                                    Loading...
+                                  </div>
+                                )}
+                              </div>
+                              <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
+                                <div style={{fontWeight: 600, fontSize: '1.05rem', lineHeight:1.2}}>{item ? item.name : `Item #${booking.itemId}`}</div>
+                                <div style={{color: '#666', fontSize: '0.9rem'}}>
                                   📅 {new Date(booking.startDate).toLocaleDateString()} → {new Date(booking.endDate).toLocaleDateString()}
                                 </div>
                                 <div style={{color: '#666', fontSize: '0.9rem'}}>
                                   💰 €{booking.totalPrice?.toFixed(2) || 'N/A'}
                                 </div>
+                                <div style={{display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap', marginTop:'4px'}}>
+                                  {booking.status !== 'APPROVED' && renderStatus(booking.status)}
+                                  {booking.status === 'APPROVED' && (
+                                    <Link to={`/item/${booking.itemId}`} className="btn btn-outline" style={{fontSize: '0.85rem', padding: '4px 10px'}}>View item</Link>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-
-                            <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px'}}>
-                              {renderStatus(booking.status)}
-                              {booking.status === 'APPROVED' && (
-                                <Link to={`/item/${booking.itemId}`} className="btn btn-outline" style={{fontSize: '0.85rem', padding: '4px 10px'}}>View item</Link>
-                              )}
-                            </div>
+                            {canReviewBooking(booking) && (
+                              <div style={{marginTop:'12px', width:'100%', borderTop:'1px solid #eee', paddingTop:'12px'}}>
+                                <div style={{fontWeight:600, marginBottom:'10px', fontSize:'1rem'}}>Leave a review</div>
+                                <div style={{display:'grid', gridTemplateColumns:'1fr', gap:'12px'}}>
+                                  <div style={{border:'1px solid #e6e6e6', borderRadius:'10px', padding:'12px', background:'#fafafa'}}>
+                                    <div style={{fontWeight:600, marginBottom:'6px'}}>Item rating</div>
+                                    {hasReview(booking.id, 'ITEM', booking.itemId) ? (
+                                      <>
+                                        <StarRating value={getUserReview(booking.id, 'ITEM', booking.itemId)?.rating || 0} disabled size={24} />
+                                        <div style={{marginTop:'6px', color:'#333', lineHeight:1.4}}>
+                                          {getUserReview(booking.id, 'ITEM', booking.itemId)?.comment || 'No comment provided.'}
+                                        </div>
+                                        <div style={{marginTop:'6px', color:'#155724', fontSize:'0.9rem'}}>Already submitted</div>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'8px'}}>
+                                        <StarRating
+                                          value={Number(getDraft(booking.id, 'item').rating)}
+                                          onChange={(n) => setDraft(booking.id, 'item', 'rating', n)}
+                                          size={26}
+                                        />
+                                        </div>
+                                        <textarea
+                                          className="form-input"
+                                          rows={3}
+                                          placeholder="How was the item?"
+                                          value={getDraft(booking.id, 'item').comment}
+                                          onChange={e => setDraft(booking.id, 'item', 'comment', e.target.value)}
+                                          style={{width:'100%'}}
+                                        />
+                                        <button
+                                          className="btn btn-primary"
+                                          style={{
+                                            marginTop:'8px',
+                                            opacity: getDraft(booking.id, 'item').rating ? 1 : 0.5,
+                                            cursor: getDraft(booking.id, 'item').rating ? 'pointer' : 'not-allowed'
+                                          }}
+                                          disabled={!getDraft(booking.id, 'item').rating}
+                                          onClick={() => submitReview({ bookingId: booking.id, targetType: 'ITEM', targetId: booking.itemId }, 'item')}
+                                        >
+                                          Submit
+                                        </button>
+                                        {getMsg(booking.id, 'item') && (
+                                          <div style={{marginTop:'4px', color:getMsg(booking.id, 'item').startsWith('✓') ? '#155724' : '#721c24', fontSize:'0.9rem'}}>
+                                            {getMsg(booking.id, 'item')}
+                                          </div>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                  <div style={{border:'1px solid #e6e6e6', borderRadius:'10px', padding:'12px', background:'#fafafa'}}>
+                                    <div style={{fontWeight:600, marginBottom:'6px'}}>Owner rating</div>
+                                    {hasReview(booking.id, 'USER', item?.owner?.id) ? (
+                                      <>
+                                        <StarRating value={getUserReview(booking.id, 'USER', item?.owner?.id)?.rating || 0} disabled size={24} />
+                                        <div style={{marginTop:'6px', color:'#333', lineHeight:1.4}}>
+                                          {getUserReview(booking.id, 'USER', item?.owner?.id)?.comment || 'No comment provided.'}
+                                        </div>
+                                        <div style={{marginTop:'6px', color:'#155724', fontSize:'0.9rem'}}>Already submitted</div>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'8px'}}>
+                                          <StarRating
+                                            value={Number(getDraft(booking.id, 'owner').rating)}
+                                            onChange={(n) => setDraft(booking.id, 'owner', 'rating', n)}
+                                            size={26}
+                                          />
+                                        </div>
+                                        <textarea
+                                          className="form-input"
+                                          rows={3}
+                                          placeholder="How was the owner?"
+                                          value={getDraft(booking.id, 'owner').comment}
+                                          onChange={e => setDraft(booking.id, 'owner', 'comment', e.target.value)}
+                                          style={{width:'100%'}}
+                                        />
+                                        <button
+                                          className="btn btn-primary"
+                                          style={{
+                                            marginTop:'6px',
+                                            opacity: (!item || !item.owner || !getDraft(booking.id, 'owner').rating) ? 0.5 : 1,
+                                            cursor: (!item || !item.owner || !getDraft(booking.id, 'owner').rating) ? 'not-allowed' : 'pointer'
+                                          }}
+                                          disabled={!item || !item.owner || !getDraft(booking.id, 'owner').rating}
+                                          onClick={() => item && item.owner && submitReview({ bookingId: booking.id, targetType: 'USER', targetId: item.owner.id }, 'owner')}
+                                        >
+                                          Submit
+                                        </button>
+                                        {getMsg(booking.id, 'owner') && (
+                                          <div style={{marginTop:'4px', color:getMsg(booking.id, 'owner').startsWith('✓') ? '#155724' : '#721c24', fontSize:'0.9rem'}}>
+                                            {getMsg(booking.id, 'owner')}
+                                          </div>
+                                        )}
+                                      </>
+                                    )}
+                                    {!item || !item.owner ? (
+                                      <div style={{marginTop:'4px', color:'#888', fontSize:'0.85rem'}}>Loading owner info...</div>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                         </div>
                       );
                     })}
@@ -324,20 +575,33 @@ export default function Bookings() {
                     {requests.map(request => {
                       const item = itemsMap[request.itemId];
                       return (
-                        <div key={request.id} className="sidebar-card" style={{display: 'flex', gap: '16px', alignItems: 'center'}}>
-                             <div style={{width: '80px', height: '80px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: '#eee'}}>
-                              {item && item.imageUrl ? (
-                                <img src={item.imageUrl} alt={item?.name} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
-                              ) : (
-                                <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc'}}>
-                                  Loading...
-                                </div>
-                              )}
-                            </div>
-                            
-                            <div style={{flex: 1}}>
-                                <div style={{fontWeight: 600, fontSize: '1.1rem'}}>{item ? item.name : `Item #${request.itemId}`}</div>
-                                <div style={{color: '#666', fontSize: '0.9rem', marginTop: '4px'}}>
+                        <div
+                          key={request.id}
+                          className="sidebar-card"
+                          style={{
+                            position:'relative',
+                            display: 'grid',
+                            gridTemplateColumns: '240px 1fr',
+                            gap: '16px',
+                            alignItems: 'flex-start'
+                          }}
+                        >
+                             {request.status === 'APPROVED' && (
+                              <span style={{position:'absolute', top:'10px', right:'10px', color:'#2ecc71', fontWeight:700}}>✓ APPROVED</span>
+                            )}
+                             <div style={{display:'flex', flexDirection:'column', gap:'10px', minWidth:'200px'}}>
+                              <div style={{width: '100%', aspectRatio: '1 / 1', borderRadius: '8px', overflow: 'hidden', background: '#eee'}}>
+                                {item && item.imageUrl ? (
+                                  <img src={item.imageUrl} alt={item?.name} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                                ) : (
+                                  <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc'}}>
+                                    Loading...
+                                  </div>
+                                )}
+                              </div>
+                              <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
+                                <div style={{fontWeight: 600, fontSize: '1.05rem', lineHeight:1.2}}>{item ? item.name : `Item #${request.itemId}`}</div>
+                                <div style={{color: '#666', fontSize: '0.9rem'}}>
                                   👤 Renter ID: {request.userId}
                                 </div>
                                 <div style={{color: '#666', fontSize: '0.9rem'}}>
@@ -346,30 +610,82 @@ export default function Bookings() {
                                 <div style={{color: 'var(--primary)', fontWeight: 600, fontSize: '0.95rem', marginTop: '4px'}}>
                                   💰 €{request.totalPrice?.toFixed(2) || 'N/A'}
                                 </div>
-                            </div>
-                            
-                            <div style={{display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '120px'}}>
-                              {request.status === 'PENDING' ? (
-                                <div style={{display: 'flex', gap: '8px'}}>
-                                    <button 
-                                      className="btn btn-primary" 
-                                      style={{padding: '6px 12px', fontSize: '0.85rem', flex: 1}} 
-                                      onClick={() => handleStatusUpdate(request.id, 'APPROVED')}
-                                    >
-                                      ✓ Accept
-                                    </button>
-                                    <button 
-                                      className="btn btn-danger" 
-                                      style={{padding: '6px 12px', fontSize: '0.85rem', flex: 1}} 
-                                      onClick={() => handleStatusUpdate(request.id, 'REJECTED')}
-                                    >
-                                      ✕ Decline
-                                    </button>
+                                <div style={{display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap', marginTop:'4px'}}>
+                                  {request.status === 'PENDING' ? (
+                                    <div style={{display: 'flex', gap: '8px'}}>
+                                        <button 
+                                          className="btn btn-primary" 
+                                          style={{padding: '6px 12px', fontSize: '0.85rem', flex: 1}} 
+                                          onClick={() => handleStatusUpdate(request.id, 'APPROVED')}
+                                        >
+                                          ✓ Accept
+                                        </button>
+                                        <button 
+                                          className="btn btn-danger" 
+                                          style={{padding: '6px 12px', fontSize: '0.85rem', flex: 1}} 
+                                          onClick={() => handleStatusUpdate(request.id, 'REJECTED')}
+                                        >
+                                          ✕ Decline
+                                        </button>
+                                    </div>
+                                  ) : (
+                                    request.status !== 'APPROVED' && <div>{renderStatus(request.status)}</div>
+                                  )}
                                 </div>
-                              ) : (
-                                <div>{renderStatus(request.status)}</div>
-                              )}
+                              </div>
                             </div>
+                            {canReviewBooking(request) && (
+                              <div style={{marginTop:'12px', width:'100%', borderTop:'1px solid #eee', paddingTop:'12px'}}>
+                                <div style={{fontWeight:600, marginBottom:'10px', fontSize:'1rem'}}>Review renter</div>
+                                <div style={{border:'1px solid #e6e6e6', borderRadius:'10px', padding:'12px', background:'#fafafa'}}>
+                                  {hasReview(request.id, 'USER', request.userId) ? (
+                                    <>
+                                      <StarRating value={getUserReview(request.id, 'USER', request.userId)?.rating || 0} disabled size={24} />
+                                      <div style={{marginTop:'6px', color:'#333', lineHeight:1.4}}>
+                                        {getUserReview(request.id, 'USER', request.userId)?.comment || 'No comment provided.'}
+                                      </div>
+                                      <div style={{marginTop:'6px', color:'#155724', fontSize:'0.9rem'}}>Already submitted</div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'8px'}}>
+                                        <span style={{fontWeight:600}}>Rating</span>
+                                        <StarRating
+                                          value={Number(getDraft(request.id, 'renter').rating)}
+                                          onChange={(n) => setDraft(request.id, 'renter', 'rating', n)}
+                                          size={26}
+                                        />
+                                      </div>
+                                      <textarea
+                                        className="form-input"
+                                        rows={3}
+                                        placeholder="How was the renter?"
+                                        value={getDraft(request.id, 'renter').comment}
+                                        onChange={e => setDraft(request.id, 'renter', 'comment', e.target.value)}
+                                        style={{width:'100%'}}
+                                      />
+                                      <button
+                                        className="btn btn-primary"
+                                        style={{
+                                          marginTop:'8px',
+                                          opacity: getDraft(request.id, 'renter').rating ? 1 : 0.5,
+                                          cursor: getDraft(request.id, 'renter').rating ? 'pointer' : 'not-allowed'
+                                        }}
+                                        disabled={!getDraft(request.id, 'renter').rating}
+                                        onClick={() => submitReview({ bookingId: request.id, targetType: 'USER', targetId: request.userId }, 'renter')}
+                                      >
+                                        Submit
+                                      </button>
+                                      {getMsg(request.id, 'renter') && (
+                                        <div style={{marginTop:'4px', color:getMsg(request.id, 'renter').startsWith('✓') ? '#155724' : '#721c24', fontSize:'0.9rem'}}>
+                                          {getMsg(request.id, 'renter')}
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                         </div>
                       );
                     })}

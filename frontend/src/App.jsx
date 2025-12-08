@@ -5,6 +5,7 @@ import Bookings from "./pages/Bookings.jsx";
 import Home from "./pages/Home.jsx";
 import ItemDetails from "./pages/ItemDetails.jsx";
 import PostItem from "./pages/PostItem.jsx";
+import UserProfile from "./pages/UserProfile.jsx";
 
 function NavBar({ user }) {
   const [query, setQuery] = useState("");
@@ -99,6 +100,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/post-item/*" element={<PostItem />} />
         <Route path="/item/:id" element={<ItemDetails />} />
+        <Route path="/member/:id" element={<UserProfile />} />
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/auth" element={<AuthPage onAuth={handleAuth} />} />
       </Routes>
