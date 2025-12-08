@@ -105,44 +105,51 @@ public class ReviewService {
     }
 
     private void enforceParticipantRules(Long reviewerId, Review review, BookingRequest booking, Item item) {
-        if (review.getTargetType() == ReviewTargetType.ITEM) {
-            review.setTargetId(review.getTargetId() != null ? review.getTargetId() : booking.getItemId());
-            if (!booking.getUserId().equals(reviewerId)) {
-                throw new RuntimeException("Only the renter can review this item");
-            }
-            if (!booking.getItemId().equals(review.getTargetId())) {
-                throw new RuntimeException("Review target item does not match booking item");
-            }
+        ReviewTargetType targetType = review.getTargetType();
+        if (targetType == ReviewTargetType.ITEM) {
+            validateItemReview(reviewerId, review, booking);
             return;
         }
-
-        if (review.getTargetType() == ReviewTargetType.USER) {
-            Long ownerId = item.getOwner() != null ? item.getOwner().getId() : null;
-            Long renterId = booking.getUserId();
-            boolean reviewerIsRenter = renterId != null && renterId.equals(reviewerId);
-            boolean reviewerIsOwner = ownerId != null && ownerId.equals(reviewerId);
-
-            if (!reviewerIsRenter && !reviewerIsOwner) {
-                throw new RuntimeException("Only booking participants can review each other");
-            }
-
-            if (reviewerIsRenter) {
-                // renter reviewing owner
-                review.setTargetId(review.getTargetId() != null ? review.getTargetId() : ownerId);
-                if (review.getTargetId() == null || !review.getTargetId().equals(ownerId)) {
-                    throw new RuntimeException("You can only review the owner for this booking");
-                }
-            } else {
-                // owner reviewing renter
-                review.setTargetId(review.getTargetId() != null ? review.getTargetId() : renterId);
-                if (review.getTargetId() == null || !review.getTargetId().equals(renterId)) {
-                    throw new RuntimeException("You can only review the renter for this booking");
-                }
-            }
+        if (targetType == ReviewTargetType.USER) {
+            validateUserReview(reviewerId, review, booking, item);
             return;
         }
-
         throw new RuntimeException("Unsupported review target");
+    }
+
+    private void validateItemReview(Long reviewerId, Review review, BookingRequest booking) {
+        Long bookingItemId = booking.getItemId();
+        review.setTargetId(review.getTargetId() != null ? review.getTargetId() : bookingItemId);
+        if (!booking.getUserId().equals(reviewerId)) {
+            throw new RuntimeException("Only the renter can review this item");
+        }
+        if (!bookingItemId.equals(review.getTargetId())) {
+            throw new RuntimeException("Review target item does not match booking item");
+        }
+    }
+
+    private void validateUserReview(Long reviewerId, Review review, BookingRequest booking, Item item) {
+        Long ownerId = item.getOwner() != null ? item.getOwner().getId() : null;
+        Long renterId = booking.getUserId();
+        boolean reviewerIsRenter = renterId != null && renterId.equals(reviewerId);
+        boolean reviewerIsOwner = ownerId != null && ownerId.equals(reviewerId);
+
+        if (!reviewerIsRenter && !reviewerIsOwner) {
+            throw new RuntimeException("Only booking participants can review each other");
+        }
+
+        if (reviewerIsRenter) {
+            setTargetOrThrow(review, ownerId, "You can only review the owner for this booking");
+        } else {
+            setTargetOrThrow(review, renterId, "You can only review the renter for this booking");
+        }
+    }
+
+    private void setTargetOrThrow(Review review, Long expectedTargetId, String errorMessage) {
+        review.setTargetId(review.getTargetId() != null ? review.getTargetId() : expectedTargetId);
+        if (review.getTargetId() == null || !review.getTargetId().equals(expectedTargetId)) {
+            throw new RuntimeException(errorMessage);
+        }
     }
 
     private ReviewResponse toResponse(Review review) {
