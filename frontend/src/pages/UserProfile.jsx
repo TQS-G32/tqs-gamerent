@@ -121,7 +121,7 @@ export default function UserProfile() {
             fontWeight: 600,
           }}
         >
-          Anúncios
+          Listings
         </div>
         <div
           className={`tab ${activeTab === "reviews" ? "active" : ""}`}
@@ -134,14 +134,14 @@ export default function UserProfile() {
             fontWeight: 600,
           }}
         >
-          Opiniões
+          Reviews
         </div>
       </div>
 
       {activeTab === "listings" && (
         <div className="sidebar-card">
           {items.length === 0 ? (
-            <div style={{ color: "#777" }}>Sem anúncios.</div>
+            <div style={{ color: "#777" }}>No listings.</div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "12px" }}>
               {items.map((item) => (
@@ -159,22 +159,22 @@ export default function UserProfile() {
                   <div style={{ fontWeight: 700 }}>{item.name}</div>
                   <div style={{ color: "#666", fontSize: "0.9rem" }}>{item.category || "Gaming"}</div>
                   {item.pricePerDay != null && (
-                    <div style={{ color: "var(--primary)", fontWeight: 700, marginTop: "4px" }}>€{item.pricePerDay.toFixed(2)}/dia</div>
+                    <div style={{ color: "var(--primary)", fontWeight: 700, marginTop: "4px" }}>€{item.pricePerDay.toFixed(2)}/day</div>
                   )}
                 </Link>
               ))}
               <div ref={observerRef} style={{ height: "1px" }} />
             </div>
           )}
-          {loading && <div style={{ marginTop: "8px", color: "#666" }}>A carregar...</div>}
-          {!loading && page + 1 >= totalPages && <div style={{ marginTop: "8px", color: "#999" }}>Fim dos anúncios.</div>}
+          {loading && <div style={{ marginTop: "8px", color: "#666" }}>Loading...</div>}
+          {!loading && page + 1 >= totalPages && <div style={{ marginTop: "8px", color: "#999" }}>End of listings.</div>}
         </div>
       )}
 
       {activeTab === "reviews" && (
         <div className="sidebar-card">
           {reviews.length === 0 ? (
-            <div style={{ color: "#777" }}>Ainda sem opiniões.</div>
+            <div style={{ color: "#777" }}>Without any reviews.</div>
           ) : (
             reviews.map((r, idx) => (
               <ReviewCard
@@ -191,4 +191,3 @@ export default function UserProfile() {
     </div>
   );
 }
-
