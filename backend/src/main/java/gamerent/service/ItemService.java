@@ -15,6 +15,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -98,6 +100,15 @@ public class ItemService {
 
     public List<Item> getItemsByOwner(Long ownerId) {
         return itemRepository.findByOwnerId(ownerId);
+    }
+
+    public List<Item> getItemsByOwnerPaginated(Long ownerId, int page, int pageSize) {
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(pageSize, 1));
+        return itemRepository.findByOwnerId(ownerId, pageable).getContent();
+    }
+
+    public int getItemsByOwnerCount(Long ownerId) {
+        return itemRepository.findByOwnerId(ownerId).size();
     }
 
     public Item addItem(Item item, User owner) {

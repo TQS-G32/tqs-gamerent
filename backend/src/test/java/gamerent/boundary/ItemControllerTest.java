@@ -186,6 +186,24 @@ class ItemControllerTest {
     }
 
     @Test
+    void getAllItems_ByOwnerPaginated_ShouldReturnPagedData() throws Exception {
+        Item ownerItem = new Item();
+        ownerItem.setId(2L);
+        ownerItem.setName("Owner Item");
+
+        given(itemService.getItemsByOwnerPaginated(5L, 1, 10)).willReturn(List.of(ownerItem));
+        given(itemService.getItemsByOwnerCount(5L)).willReturn(12);
+
+        mockMvc.perform(get("/api/items?ownerId=5&page=1&pageSize=10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].id").value(2))
+                .andExpect(jsonPath("$.totalCount").value(12))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.pageSize").value(10));
+    }
+
+    @Test
     void search_WithRentableFilter_ShouldReturnOnlyRentable() throws Exception {
         Item rentableItem = new Item();
         rentableItem.setId(1L);

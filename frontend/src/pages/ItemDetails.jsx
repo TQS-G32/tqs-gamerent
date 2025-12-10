@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import ReviewCard from "../components/ReviewCard.jsx";
 
 export default function ItemDetails() {
   const { id } = useParams();
@@ -16,7 +17,20 @@ export default function ItemDetails() {
   const [ownerAvailable, setOwnerAvailable] = useState(false);
   const [ownerMinDays, setOwnerMinDays] = useState(1);
   const [ownerMsg, setOwnerMsg] = useState("");
+  const [itemReviews, setItemReviews] = useState([]);
+  const [itemReviewForm, setItemReviewForm] = useState({ rating: 5, comment: "" });
+  const [itemReviewMsg, setItemReviewMsg] = useState("");
+  const [ownerProfile, setOwnerProfile] = useState(null);
   const navigate = useNavigate();
+
+  const currentUser = useMemo(() => {
+    try {
+      const stored = window.localStorage.getItem('user');
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
     fetch(`/api/items/${id}`, { credentials: 'include' })
@@ -28,17 +42,17 @@ export default function ItemDetails() {
           setSelectedRental(data);
         }
         // Setup owner controls if current user is owner
-        try {
-          const stored = window.localStorage.getItem('user');
-          if (stored) {
-            const u = JSON.parse(stored);
-            if (u && data.owner && u.id === data.owner.id) {
-              setOwnerMode(true);
-              setOwnerAvailable(!!data.available);
-              setOwnerMinDays(data.minRentalDays || 1);
-            }
-          }
-        } catch (e) {}
+        if (currentUser && data.owner && currentUser.id === data.owner.id) {
+          setOwnerMode(true);
+          setOwnerAvailable(!!data.available);
+          setOwnerMinDays(data.minRentalDays || 1);
+        }
+        if (data && data.owner && data.owner.id) {
+          fetch(`/api/users/${data.owner.id}/profile`)
+            .then((res) => res.json())
+            .then((profile) => setOwnerProfile(profile))
+            .catch(() => {});
+        }
       })
       .catch(err => console.error(err));
 
@@ -47,7 +61,7 @@ export default function ItemDetails() {
       .then((res) => res.json())
       .then((data) => setBookings(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
-  }, [id]);
+  }, [id, currentUser]);
 
   // For now, we only show the item itself as a rental listing
   // In a real app, you'd fetch all versions of this item listed by different users
@@ -58,6 +72,13 @@ export default function ItemDetails() {
       setRentals([]);
     }
   }, [item]);
+
+  useEffect(() => {
+    fetch(`/api/reviews/item/${id}`, { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => setItemReviews(Array.isArray(data) ? data : []))
+      .catch(err => console.error(err));
+  }, [id]);
 
   function handleBook(e, rentalItem) {
     e.preventDefault();
@@ -132,6 +153,70 @@ export default function ItemDetails() {
   const getMinDate = () => {
     const today = new Date();
     return today.toISOString().split('T')[0];
+  };
+
+  const eligibleBooking = useMemo(() => {
+    if (!currentUser) return null;
+    const finished = bookings
+      .filter(b => b.userId === currentUser.id && b.status === 'APPROVED' && new Date(b.endDate) <= new Date());
+    if (finished.length === 0) return null;
+    return finished.sort((a, b) => new Date(b.endDate) - new Date(a.endDate))[0];
+  }, [bookings, currentUser]);
+
+  const hasReviewedItem = useMemo(() => {
+    if (!eligibleBooking || !currentUser) return false;
+    return itemReviews.some(r => r.reviewerId === currentUser.id && r.bookingId === eligibleBooking.id && r.targetType === 'ITEM');
+  }, [eligibleBooking, currentUser, itemReviews]);
+
+  const canReviewItem = !!eligibleBooking && !hasReviewedItem;
+
+  const getAverageRating = (reviews) => {
+    if (!reviews || reviews.length === 0) return null;
+    const sum = reviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+    return (sum / reviews.length).toFixed(1);
+  };
+
+  const refreshItemReviews = () => {
+    fetch(`/api/reviews/item/${id}`, { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => setItemReviews(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  };
+
+  const submitReview = async (payload, setMsg, onDone) => {
+    setMsg('');
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to submit review');
+      }
+      await res.json();
+      setMsg('✓ Review submitted');
+      if (onDone) onDone();
+    } catch (e) {
+      setMsg(`✗ ${e.message}`);
+    }
+  };
+
+  const handleSubmitItemReview = () => {
+    if (!eligibleBooking || !item) return;
+    submitReview(
+      {
+        bookingId: eligibleBooking.id,
+        targetType: 'ITEM',
+        targetId: item.id,
+        rating: Number(itemReviewForm.rating),
+        comment: itemReviewForm.comment
+      },
+      setItemReviewMsg,
+      refreshItemReviews
+    );
   };
 
   if (!item) return <div className="container" style={{paddingTop: '40px'}}>Loading...</div>;
@@ -424,14 +509,87 @@ export default function ItemDetails() {
                       {selectedRental.owner ? selectedRental.owner.name.charAt(0).toUpperCase() : 'U'}
                    </div>
                    <div style={{flex: 1}}>
-                      <div style={{fontWeight: 600, fontSize: '1rem'}}>{selectedRental.owner ? selectedRental.owner.name : 'Unknown Owner'}</div>
-                      <div style={{fontSize: '0.8rem', color: '#888'}}>Member for {daysSincePosted > 0 ? daysSincePosted + ' days' : 'recently'}</div>
+                      <div style={{fontWeight: 600, fontSize: '1rem'}}>
+                        {selectedRental.owner ? (
+                          <Link to={`/member/${selectedRental.owner.id}?tab=reviews`} style={{color:'inherit', textDecoration:'none'}}>
+                            {selectedRental.owner.name}
+                          </Link>
+                        ) : 'Unknown Owner'}
+                      </div>
+                      <div style={{fontSize: '0.8rem', color: '#888', display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap'}}>
+                        <span>Member for {daysSincePosted > 0 ? daysSincePosted + ' days' : 'recently'}</span>
+                        {ownerProfile && (
+                          <span style={{display:'flex', alignItems:'center', gap:'4px', color:'#f5a623', fontWeight:700}}>
+                            ★ {ownerProfile.averageRating?.toFixed(1) || '0.0'}
+                            <span style={{color:'#666', fontWeight:600}}>({ownerProfile.reviewCount || 0})</span>
+                          </span>
+                        )}
+                      </div>
                    </div>
                    <div>
                       <button className="btn btn-outline" style={{padding: '6px 12px', fontSize: '0.85rem'}}>Message</button>
                    </div>
               </div>
             )}
+        </div>
+      </div>
+      <div className="reviews-section" style={{marginTop: '24px', display: 'grid', gap: '16px'}}>
+        <div className="sidebar-card">
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px'}}>
+            <h3 style={{margin:0, fontSize:'1.1rem'}}>⭐ Item reviews</h3>
+            {getAverageRating(itemReviews) && (
+              <span style={{fontWeight:600, color:'var(--primary)'}}>Avg {getAverageRating(itemReviews)}/5</span>
+            )}
+          </div>
+          {canReviewItem ? (
+            <div style={{marginBottom:'12px', background:'#f9f9f9', padding:'12px', borderRadius:'6px', border:'1px solid #eee'}}>
+              <div style={{display:'flex', gap:'8px', alignItems:'center', marginBottom:'8px'}}>
+                <label style={{fontWeight:600, fontSize:'0.9rem'}}>Your rating</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="5"
+                  value={itemReviewForm.rating}
+                  onChange={e => setItemReviewForm({...itemReviewForm, rating: e.target.value})}
+                  style={{width:'70px'}}
+                />
+              </div>
+              <textarea
+                className="form-input"
+                placeholder="How was the item?"
+                value={itemReviewForm.comment}
+                onChange={e => setItemReviewForm({...itemReviewForm, comment: e.target.value})}
+                rows={3}
+                style={{width:'100%'}}
+              />
+              <button className="btn btn-primary" style={{marginTop:'8px'}} onClick={handleSubmitItemReview}>Submit review</button>
+              {itemReviewMsg && (
+                <div style={{marginTop:'6px', fontSize:'0.9rem', color: itemReviewMsg.startsWith('✓') ? '#155724' : '#721c24'}}>
+                  {itemReviewMsg}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{marginBottom:'12px', fontSize:'0.9rem', color:'#666'}}>
+              {currentUser ? 'Reviews unlock after your approved rental ends.' : 'Log in and rent this item to leave a review.'}
+              {hasReviewedItem && ' You already reviewed this item for your last rental.'}
+            </div>
+          )}
+          {itemReviews.length === 0 ? (
+            <p style={{color:'#777'}}>No reviews yet.</p>
+          ) : (
+            <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
+              {itemReviews.map((r, idx) => (
+                <ReviewCard
+                  key={r.id || idx}
+                  name={r.reviewerName}
+                  rating={r.rating}
+                  comment={r.comment}
+                  date={r.createdAt}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

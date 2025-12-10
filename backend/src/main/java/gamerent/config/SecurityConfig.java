@@ -17,6 +17,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**", "/", "/index.html", "/static/**", "/assets/**", "/favicon.ico", "/api/igdb/**").permitAll()
                 .requestMatchers("/api/items/my-items").authenticated()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/users/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/reviews/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/items/**").permitAll()
                 .anyRequest().authenticated()
             );

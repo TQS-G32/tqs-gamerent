@@ -51,21 +51,38 @@ public class ItemController {
     }
 
     @GetMapping
-    public Map<String, Object> getAllItems(@RequestParam(required=false) Boolean rentable, @RequestParam(defaultValue = "0") int page) {
+    public Map<String, Object> getAllItems(@RequestParam(required=false) Boolean rentable,
+                                           @RequestParam(defaultValue = "0") int page,
+                                           @RequestParam(defaultValue = "10") int pageSize,
+                                           @RequestParam(required = false) Long ownerId) {
+        if (ownerId != null) {
+            int safePageSize = pageSize <= 0 ? DEFAULT_PAGE_SIZE : Math.min(pageSize, 50);
+            List<Item> items = itemService.getItemsByOwnerPaginated(ownerId, page, safePageSize);
+            int totalCount = itemService.getItemsByOwnerCount(ownerId);
+            int totalPages = (totalCount + safePageSize - 1) / safePageSize;
+            return Map.of(
+                    "items", items,
+                    "page", page,
+                    "pageSize", safePageSize,
+                    "totalCount", totalCount,
+                    "totalPages", totalPages
+            );
+        }
         List<Item> allItems = itemService.getAllItems();
         if (rentable != null && rentable) {
             allItems = allItems.stream().filter(i -> i.getAvailable() != null && i.getAvailable() && i.getPricePerDay() != null).toList();
         }
+        int safePageSize = pageSize <= 0 ? DEFAULT_PAGE_SIZE : pageSize;
         int totalCount = allItems.size();
-        int totalPages = (totalCount + DEFAULT_PAGE_SIZE - 1) / DEFAULT_PAGE_SIZE;
-        int start = page * DEFAULT_PAGE_SIZE;
-        int end = Math.min(start + DEFAULT_PAGE_SIZE, totalCount);
+        int totalPages = (totalCount + safePageSize - 1) / safePageSize;
+        int start = page * safePageSize;
+        int end = Math.min(start + safePageSize, totalCount);
         List<Item> items = start >= totalCount ? List.of() : allItems.subList(start, end);
         
         return Map.of(
             "items", items,
             "page", page,
-            "pageSize", DEFAULT_PAGE_SIZE,
+            "pageSize", safePageSize,
             "totalCount", totalCount,
             "totalPages", totalPages
         );
