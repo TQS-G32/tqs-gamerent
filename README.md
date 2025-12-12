@@ -2,6 +2,7 @@
 
 GameRent is a peer-to-peer rental platform for video games and gaming hardware.
 
+
 ## Features
 - **Renter**: Search items, Book items (with date overlap protection), View Bookings.
 - **User**: List items, Manage Requests (Approve/Reject), Dashboard.
@@ -70,4 +71,3 @@ The application creates default users on first startup. Their passwords are stor
    - role: `ADMIN`
 
 Passwords are hashed using BCrypt with appropriate salt before being stored in the PostgreSQL database.
-
