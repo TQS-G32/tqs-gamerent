@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Stop and clean Docker containers
-        run: docker compose down -v || true
+        run: docker-compose down -v || true
 
       - name: Rebuild and restart Docker containers
-        run: docker compose up --build -d
+        run: docker-compose up --build -d
