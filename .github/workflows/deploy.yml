@@ -1,0 +1,23 @@
+name: deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  redeploy:
+    name: redeploy
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Stop and clean Docker containers
+        run: docker compose down -v
+        working-directory: ${{ github.workspace }}
+
+      - name: Rebuild and restart Docker containers
+        run: docker compose up --build -d
+        working-directory: ${{ github.workspace }}
