@@ -2,7 +2,6 @@
 
 GameRent is a peer-to-peer rental platform for video games and gaming hardware.
 
-
 ## Features
 - **Renter**: Search items, Book items (with date overlap protection), View Bookings.
 - **User**: List items, Manage Requests (Approve/Reject), Dashboard.

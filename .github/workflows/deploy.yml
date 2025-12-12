@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - copilot/add-continuous-deployment-workflow
+      - main
 
 jobs:
   redeploy:
