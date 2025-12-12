@@ -115,11 +115,15 @@ public class ItemController {
 
     @PostMapping
     public Item addItem(@RequestBody Item item, HttpServletRequest request) {
-        // Resolve current user from session if present
-        Long ownerId = 1L;
         Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute(USER_ID_KEY) : null;
+        if (uid == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
+        }
+
+        Long ownerId;
         if (uid instanceof Long longValue) ownerId = longValue;
         else if (uid instanceof Integer intValue) ownerId = intValue.longValue();
+        else throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
 
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new RuntimeException("Owner not found. Ensure DataInitializer has run."));
@@ -128,10 +132,15 @@ public class ItemController {
     
     @GetMapping("/my-items")
     public List<Item> getMyItems(HttpServletRequest request) {
-        Long ownerId = 1L;
         Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute(USER_ID_KEY) : null;
+        if (uid == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
+        }
+
+        Long ownerId;
         if (uid instanceof Long longValue) ownerId = longValue;
         else if (uid instanceof Integer intValue) ownerId = intValue.longValue();
+        else throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
 
         return itemService.getItemsByOwner(ownerId);
     }

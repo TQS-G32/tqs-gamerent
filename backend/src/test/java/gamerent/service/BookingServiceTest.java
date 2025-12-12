@@ -1,7 +1,9 @@
 package gamerent.service;
 
+import app.getxray.xray.junit.customjunitxml.annotations.Requirement;
 import gamerent.data.*;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -17,6 +19,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@Requirement("US-1")
 class BookingServiceTest {
     
     @Mock

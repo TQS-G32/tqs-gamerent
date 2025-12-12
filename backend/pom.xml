@@ -133,7 +133,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
-                <dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>5.9.2</version>
@@ -159,6 +164,23 @@
                 <exclusion>
                     <groupId>com.sun.jna</groupId>
                     <artifactId>jna-platform</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- Xray for Jira Integration -->
+        <dependency>
+            <groupId>app.getxray</groupId>
+            <artifactId>xray-junit-extensions</artifactId>
+            <version>0.7.0</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>junit</groupId>
+                    <artifactId>junit</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.junit.platform</groupId>
+                    <artifactId>junit-platform-runner</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -203,6 +225,16 @@
                     </execution>
 
                     </executions>
+                </plugin>
+                <!-- Xray Maven Plugin for test reporting -->
+                <plugin>
+                    <groupId>app.getxray</groupId>
+                    <artifactId>xray-maven-plugin</artifactId>
+                    <version>0.7.4</version>
+                    <configuration>
+                        <reportFormat>junit</reportFormat>
+                        <reportFile>${project.build.directory}/surefire-reports</reportFile>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>

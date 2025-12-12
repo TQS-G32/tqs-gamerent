@@ -1,5 +1,6 @@
 package gamerent.boundary;
 
+import app.getxray.xray.junit.customjunitxml.annotations.Requirement;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gamerent.data.BookingRequest;
 import gamerent.data.BookingStatus;
@@ -9,6 +10,7 @@ import gamerent.data.UserRepository;
 import gamerent.service.BookingService;
 import gamerent.service.ItemService;
 import gamerent.service.UserService;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(controllers = {gamerent.boundary.AuthController.class, gamerent.boundary.ItemController.class, gamerent.boundary.BookingController.class})
 @AutoConfigureMockMvc(addFilters = false)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Requirement("US1")
 public class BookingFlowTest {
 
     @Autowired

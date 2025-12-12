@@ -1,7 +1,10 @@
 package gamerent.boundary;
 
+import app.getxray.xray.junit.customjunitxml.annotations.Requirement;
+import app.getxray.xray.junit.customjunitxml.annotations.XrayTest;
 import gamerent.data.*;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -17,6 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc(addFilters = false)
+@Requirement("US2, US5")
 class BookingControllerIT {
     
     @Autowired
@@ -166,5 +170,17 @@ class BookingControllerIT {
                 .content(json))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APPROVED"));
+    }
+    @Test
+    void getBookingsByItem_NoItemId_ShouldReturnEmpty() throws Exception {
+        mockMvc.perform(get("/api/bookings"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+    @Test
+    void getBookingsByItem_InvalidItemId_ShouldReturnEmpty() throws Exception {
+        mockMvc.perform(get("/api/bookings?itemId=0"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
     }
 }

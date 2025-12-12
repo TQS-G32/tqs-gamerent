@@ -1,9 +1,12 @@
 package gamerent.boundary;
 
+import app.getxray.xray.junit.customjunitxml.annotations.Requirement;
+import app.getxray.xray.junit.customjunitxml.annotations.XrayTest;
 import gamerent.data.Review;
 import gamerent.data.ReviewTargetType;
 import gamerent.service.ReviewService;
 import gamerent.boundary.dto.ReviewResponse;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -24,6 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = ReviewController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Requirement("US3, US6")
 class ReviewControllerTest {
 
     @Autowired
@@ -33,6 +37,8 @@ class ReviewControllerTest {
     private ReviewService reviewService;
 
     @Test
+    @XrayTest(key = "REVIEW-UNIT-1")
+    @Tag("unit")
     void addReview_ShouldUseSessionUser() throws Exception {
         Review saved = new Review();
         saved.setId(10L);
@@ -50,6 +56,8 @@ class ReviewControllerTest {
     }
 
     @Test
+    @XrayTest(key = "REVIEW-UNIT-2")
+    @Tag("unit")
     void addReview_NoSession_ShouldReturn401() throws Exception {
         mockMvc.perform(post("/api/reviews")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -58,6 +66,8 @@ class ReviewControllerTest {
     }
 
     @Test
+    @XrayTest(key = "REVIEW-UNIT-3")
+    @Tag("unit")
     void getItemReviews_ShouldReturnList() throws Exception {
         ReviewResponse review = new ReviewResponse(
                 1L,
