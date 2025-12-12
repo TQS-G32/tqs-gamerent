@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - copilot/add-continuous-deployment-workflow
   pull_request:
     branches:
       - main
