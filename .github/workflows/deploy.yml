@@ -1,17 +1,12 @@
 name: deploy
 
 on:
-  workflow_run:
-    workflows: ["Build and Analyze with SonarQube"]
-    types:
-      - completed
+  push:
     branches:
       - copilot/add-continuous-deployment-workflow
-      - main
 
 jobs:
   redeploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     name: redeploy
     runs-on: self-hosted
     permissions:
@@ -20,8 +15,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Create .env file
         run: echo "${{ secrets.ENV_FILE }}" > .env
