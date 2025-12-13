@@ -115,11 +115,7 @@ public class ItemController {
 
     @PostMapping
     public Item addItem(@RequestBody Item item, HttpServletRequest request) {
-        // Resolve current user from session if present
-        Long ownerId = 1L;
-        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute(USER_ID_KEY) : null;
-        if (uid instanceof Long longValue) ownerId = longValue;
-        else if (uid instanceof Integer intValue) ownerId = intValue.longValue();
+        Long ownerId = resolveOwnerId(request, null, true);
 
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new RuntimeException("Owner not found. Ensure DataInitializer has run."));
@@ -128,11 +124,7 @@ public class ItemController {
     
     @GetMapping("/my-items")
     public List<Item> getMyItems(HttpServletRequest request) {
-        Long ownerId = 1L;
-        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute(USER_ID_KEY) : null;
-        if (uid instanceof Long longValue) ownerId = longValue;
-        else if (uid instanceof Integer intValue) ownerId = intValue.longValue();
-
+        Long ownerId = resolveOwnerId(request, null, true);
         return itemService.getItemsByOwner(ownerId);
     }
     
@@ -143,10 +135,7 @@ public class ItemController {
 
     @PutMapping("/{id}/settings")
     public Map<String, Object> updateItemSettings(@PathVariable Long id, @RequestBody Map<String, Object> payload, HttpServletRequest request) {
-        Long ownerId = 1L;
-        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute(USER_ID_KEY) : null;
-        if (uid instanceof Long longValue) ownerId = longValue;
-        else if (uid instanceof Integer intValue) ownerId = intValue.longValue();
+        Long ownerId = resolveOwnerId(request, 1L, false);
 
         Boolean available = payload.containsKey("available") ? (Boolean) payload.get("available") : null;
         Integer minRentalDays = payload.containsKey("minRentalDays") ? (Integer) payload.get("minRentalDays") : null;
@@ -157,5 +146,16 @@ public class ItemController {
         } catch (RuntimeException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
+    }
+
+    private Long resolveOwnerId(HttpServletRequest request, Long defaultValue, boolean require) {
+        Object uid = request.getSession(false) != null ? request.getSession(false).getAttribute(USER_ID_KEY) : null;
+        if (uid == null) {
+            if (require) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
+            return defaultValue;
+        }
+        if (uid instanceof Long longValue) return longValue;
+        if (uid instanceof Integer intValue) return intValue.longValue();
+        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
     }
 }

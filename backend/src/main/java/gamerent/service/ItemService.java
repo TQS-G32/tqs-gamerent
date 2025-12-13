@@ -117,9 +117,10 @@ public class ItemService {
     }
 
     public Item getItem(Long id) {
-        return itemRepository.findById(id).orElseThrow(() -> new RuntimeException("Item not found"));
+        return itemRepository.findById(id)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Item not found"));
     }
-
+    
     public void populateFromIGDB(int limit, User owner) {
         List<Item> items = new ArrayList<>();
 

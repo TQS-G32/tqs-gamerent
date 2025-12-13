@@ -20,6 +20,7 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/users/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/reviews/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/items/**").permitAll()
+                .requestMatchers("/api/items/**").permitAll()
                 .anyRequest().authenticated()
             );
         return http.build();

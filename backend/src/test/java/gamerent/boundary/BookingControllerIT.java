@@ -1,7 +1,10 @@
 package gamerent.boundary;
 
+import app.getxray.xray.junit.customjunitxml.annotations.Requirement;
+import app.getxray.xray.junit.customjunitxml.annotations.XrayTest;
 import gamerent.data.*;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -17,6 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc(addFilters = false)
+@Requirement("US2, US5")
 class BookingControllerIT {
     
     @Autowired
@@ -87,6 +91,8 @@ class BookingControllerIT {
     }
     
     @Test
+    @XrayTest(key = "BOOK-1")
+    @Tag("integration")
     void createBooking_ShouldReturn200AndCreateBooking() throws Exception {
         String json = """
             {
@@ -108,6 +114,8 @@ class BookingControllerIT {
     }
     
     @Test
+    @XrayTest(key = "BOOK-2")
+    @Tag("integration")
     void getMyBookings_ShouldReturn200AndListBookings() throws Exception {
         // Create a booking
         BookingRequest booking = new BookingRequest();
@@ -126,6 +134,8 @@ class BookingControllerIT {
     }
     
     @Test
+    @XrayTest(key = "BOOK-3")
+    @Tag("integration")
     void getIncomingRequests_ShouldReturn200AndListRequests() throws Exception {
         // Create a booking for owner's item
         BookingRequest booking = new BookingRequest();
@@ -144,6 +154,8 @@ class BookingControllerIT {
     }
     
     @Test
+    @XrayTest(key = "BOOK-4")
+    @Tag("integration")
     void updateStatus_ShouldReturn200AndUpdateBooking() throws Exception {
         // Create a booking
         BookingRequest booking = new BookingRequest();
@@ -166,5 +178,23 @@ class BookingControllerIT {
                 .content(json))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APPROVED"));
+    }
+
+    @Test
+    @XrayTest(key = "BOOK-5")
+    @Tag("integration")
+    void getBookingsByItem_NoItemId_ShouldReturnEmpty() throws Exception {
+        mockMvc.perform(get("/api/bookings"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @XrayTest(key = "BOOK-6")
+    @Tag("integration")
+    @Test
+    void getBookingsByItem_InvalidItemId_ShouldReturnEmpty() throws Exception {
+        mockMvc.perform(get("/api/bookings?itemId=0"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
     }
 }

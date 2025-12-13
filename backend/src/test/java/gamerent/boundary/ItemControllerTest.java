@@ -1,14 +1,17 @@
 package gamerent.boundary;
 
+import app.getxray.xray.junit.customjunitxml.annotations.Requirement;
+import app.getxray.xray.junit.customjunitxml.annotations.XrayTest;
 import gamerent.data.Item;
 import gamerent.data.User;
 import gamerent.data.UserRepository;
 import gamerent.service.ItemService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -25,8 +28,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
-@SpringBootTest
+@WebMvcTest(ItemController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Requirement("US1, US4, US10")
 class ItemControllerTest {
 
     @Autowired
@@ -58,6 +62,8 @@ class ItemControllerTest {
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-1")
+    @Tag("unit")
     void getCatalog_ShouldReturnAllItems() throws Exception {
         given(itemService.searchAllItemsByNameAndCategory(null, null))
                 .willReturn(List.of(testItem));
@@ -69,6 +75,8 @@ class ItemControllerTest {
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-2")
+    @Tag("unit")
     void getCatalog_WithSearch_ShouldReturnFiltered() throws Exception {
         given(itemService.searchAllItemsByNameAndCategory("PlayStation", null))
                 .willReturn(List.of(testItem));
@@ -79,6 +87,8 @@ class ItemControllerTest {
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-3")
+    @Tag("unit")
     void getCatalog_WithCategory_ShouldReturnFiltered() throws Exception {
         given(itemService.searchAllItemsByNameAndCategory(null, "Console"))
                 .willReturn(List.of(testItem));
@@ -89,6 +99,8 @@ class ItemControllerTest {
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-4")
+    @Tag("unit")
     void getAllItems_ShouldReturnPaginated() throws Exception {
         given(itemService.getAllItems())
                 .willReturn(List.of(testItem));
@@ -100,6 +112,8 @@ class ItemControllerTest {
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-5")
+    @Tag("unit")
     void getItem_ShouldReturnItem() throws Exception {
         given(itemService.getItem(1L))
                 .willReturn(testItem);
@@ -111,12 +125,14 @@ class ItemControllerTest {
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-6")
+    @Tag("unit")
     void addItem_ShouldCreateNewItem() throws Exception {
         given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
         given(itemService.addItem(any(Item.class), any(User.class)))
                 .willReturn(testItem);
 
-        mockMvc.perform(post("/api/items")
+        mockMvc.perform(post("/api/items").sessionAttr("userId", 1L)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\": \"PlayStation 5\", \"category\": \"Console\", \"pricePerDay\": 10.0, \"description\": \"High performance console\"}"))
                 .andExpect(status().isOk())
@@ -124,16 +140,20 @@ class ItemControllerTest {
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-7")
+    @Tag("unit")
     void getMyItems_ShouldReturnUserItems() throws Exception {
         given(itemService.getItemsByOwner(1L))
                 .willReturn(List.of(testItem));
 
-        mockMvc.perform(get("/api/items/my-items"))
+        mockMvc.perform(get("/api/items/my-items").sessionAttr("userId", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("PlayStation 5"));
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-8")
+    @Tag("unit")
     void search_ShouldReturnSearchResults() throws Exception {
         given(itemService.searchItems("PlayStation", null))
                 .willReturn(List.of(testItem));
@@ -144,6 +164,8 @@ class ItemControllerTest {
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-9")
+    @Tag("unit")
     void getCatalog_WithPagination_ShouldReturnPage() throws Exception {
         given(itemService.searchAllItemsByNameAndCategory(null, null))
                 .willReturn(List.of());
@@ -155,6 +177,8 @@ class ItemControllerTest {
 
     // Tests for rentable filter functionality
     @Test
+    @XrayTest(key = "ITEM-UNIT-10")
+    @Tag("unit")
     void getCatalog_WithRentableFilter_ShouldReturnOnlyRentableItems() throws Exception {
         Item rentableItem = new Item();
         rentableItem.setId(1L);
@@ -172,6 +196,8 @@ class ItemControllerTest {
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-11")
+    @Tag("unit")
     void getAllItems_WithRentableFilter_ShouldFilterCorrectly() throws Exception {
         Item rentableItem = new Item();
         rentableItem.setId(1L);
@@ -186,6 +212,8 @@ class ItemControllerTest {
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-12")
+    @Tag("unit")
     void getAllItems_ByOwnerPaginated_ShouldReturnPagedData() throws Exception {
         Item ownerItem = new Item();
         ownerItem.setId(2L);
@@ -204,6 +232,8 @@ class ItemControllerTest {
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-13")
+    @Tag("unit")
     void search_WithRentableFilter_ShouldReturnOnlyRentable() throws Exception {
         Item rentableItem = new Item();
         rentableItem.setId(1L);
@@ -221,6 +251,8 @@ class ItemControllerTest {
 
     // Tests for updateItemSettings endpoint
     @Test
+    @XrayTest(key = "ITEM-UNIT-14")
+    @Tag("unit")
     void updateItemSettings_AsOwner_ShouldUpdateSuccessfully() throws Exception {
         Item updatedItem = new Item();
         updatedItem.setId(1L);
@@ -240,6 +272,8 @@ class ItemControllerTest {
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-15")
+    @Tag("unit")
     void updateItemSettings_OnlyAvailable_ShouldUpdateAvailability() throws Exception {
         Item updatedItem = new Item();
         updatedItem.setId(1L);
@@ -257,6 +291,8 @@ class ItemControllerTest {
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-16")
+    @Tag("unit")
     void updateItemSettings_OnlyMinDays_ShouldUpdateMinRentalDays() throws Exception {
         Item updatedItem = new Item();
         updatedItem.setId(1L);
@@ -273,6 +309,8 @@ class ItemControllerTest {
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-17")
+    @Tag("unit")
     void updateItemSettings_NotOwner_ShouldReturnBadRequest() throws Exception {
         given(itemService.updateItemSettings(anyLong(), anyLong(), any(), any()))
                 .willThrow(new RuntimeException("Unauthorized: You are not the owner of this item"));
@@ -284,6 +322,8 @@ class ItemControllerTest {
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-18")
+    @Tag("unit")
     void updateItemSettings_WithPendingBookings_ShouldReturnBadRequest() throws Exception {
         given(itemService.updateItemSettings(anyLong(), anyLong(), any(), any()))
                 .willThrow(new RuntimeException("Item has active or confirmed bookings and cannot be set to Inactive"));
@@ -295,6 +335,8 @@ class ItemControllerTest {
     }
 
     @Test
+    @XrayTest(key = "ITEM-UNIT-19")
+    @Tag("unit")
     void updateItemSettings_InvalidMinDays_ShouldReturnBadRequest() throws Exception {
         given(itemService.updateItemSettings(anyLong(), anyLong(), any(), any()))
                 .willThrow(new RuntimeException("Minimum rental days must be between 1 and 30"));

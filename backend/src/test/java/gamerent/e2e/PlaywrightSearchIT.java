@@ -2,7 +2,6 @@ package gamerent.e2e;
 
 import com.microsoft.playwright.*;
 import gamerent.e2e.pages.HomePage;
-import gamerent.e2e.pages.ItemPage;
 import gamerent.data.Item;
 import gamerent.data.ItemRepository;
 import gamerent.data.User;
@@ -11,10 +10,11 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class PlaywrightIT {
+class PlaywrightSearchIT {
 
     @LocalServerPort
     private int serverPort;
@@ -66,24 +66,21 @@ class PlaywrightIT {
 
     @Disabled("")
     @Test
-    void testSearchAndBookFlow() {
+    void testSearchUIShowsResults() {
         String baseUrl = "http://localhost:" + serverPort;
-        
+
         HomePage homePage = new HomePage(page);
         homePage.navigate(baseUrl);
-        
+
+        homePage.search("PS5");
+
         try {
             page.waitForSelector(".item-card", new Page.WaitForSelectorOptions().setTimeout(60000));
         } catch (Exception e) {
             System.out.println("Page content at timeout: " + page.content());
             throw e;
         }
-        
-        homePage.selectFirstItem();
-        
-        ItemPage itemPage = new ItemPage(page);
-        itemPage.book("2025-12-01", "2025-12-05");
-        
-        assertTrue(itemPage.isBookingSuccessful());
+
+        assertTrue(page.isVisible(".item-card"));
     }
 }

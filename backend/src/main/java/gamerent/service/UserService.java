@@ -40,7 +40,7 @@ public class UserService {
     }
 
     public UserProfileResponse getProfile(Long userId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(userId).orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "User not found"));
         var reviews = reviewRepository.findByTargetTypeAndTargetId(ReviewTargetType.USER, userId);
 
         DoubleSummaryStatistics stats = reviews.stream()
@@ -49,15 +49,18 @@ public class UserService {
                 .summaryStatistics();
 
         double average = stats.getCount() > 0 ? Math.round((stats.getAverage()) * 10.0) / 10.0 : 0.0;
-        int itemsCount = itemRepository.findByOwnerId(userId).size();
+        java.util.List<gamerent.data.Item> items = itemRepository.findByOwnerId(userId);
+        int itemsCount = items.size();
 
         return new UserProfileResponse(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                average,
-                (int) stats.getCount(),
-                itemsCount
+            user.getId(),
+            user.getName(),
+            user.getEmail(),
+            average,
+            (int) stats.getCount(),
+            itemsCount,
+            items,
+            reviews
         );
     }
 }

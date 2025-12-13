@@ -10,14 +10,16 @@ public class ItemPage {
     }
 
     public void book(String start, String end) {
-        // Use robust locators based on labels
-        page.getByLabel("From").fill(start);
-        page.getByLabel("To").fill(end);
-        page.click("button:text('Request Booking')");
+        page.getByLabel("Start Date").fill(start);
+        page.getByLabel("End Date").fill(end);
+        page.click("button:has-text('Request Booking')");
     }
 
     public boolean isBookingSuccessful() {
-        // Increased timeout for success message appearance
-        return page.isVisible("text=Booking sent!");
+        return page.isVisible("text=Booking request sent") || page.isVisible("text=Booking sent") || page.isVisible("text=Booking requested");
+    }
+
+    public boolean hasBookingControls() {
+        return page.isVisible("button:has-text('Request Booking')") || page.isVisible("input[type=date]");
     }
 }

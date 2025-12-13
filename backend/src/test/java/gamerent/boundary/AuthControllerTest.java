@@ -1,8 +1,11 @@
 package gamerent.boundary;
 
+import app.getxray.xray.junit.customjunitxml.annotations.Requirement;
+import app.getxray.xray.junit.customjunitxml.annotations.XrayTest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gamerent.data.User;
 import gamerent.service.UserService;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +29,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(controllers = gamerent.boundary.AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class AuthControllerTest {
+@Requirement("Auth")
+class AuthControllerTest {
 
     @MockBean
     private UserService userService;
@@ -37,6 +41,8 @@ public class AuthControllerTest {
     private ObjectMapper objectMapper;
 
     @Test
+    @XrayTest(key = "AUTH-UNIT-1")
+    @Tag("unit")
     void registerLoginMeLogoutFlow() throws Exception {
         // Register
         Map<String, String> reg = Map.of(

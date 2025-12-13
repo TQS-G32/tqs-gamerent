@@ -108,7 +108,9 @@ class ReviewServiceTest {
 
         when(bookingRepository.findById(futureBooking.getId())).thenReturn(Optional.of(futureBooking));
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> reviewService.addReview(futureBooking.getUserId(), review));
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> {
+            reviewService.addReview(futureBooking.getUserId(), review);
+        });
         assertEquals("You can only review after the rental period has ended", ex.getMessage());
     }
 
@@ -187,7 +189,9 @@ class ReviewServiceTest {
 
         when(bookingRepository.findById(pending.getId())).thenReturn(Optional.of(pending));
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> reviewService.addReview(pending.getUserId(), review));
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> {
+            reviewService.addReview(pending.getUserId(), review);
+        });
         assertEquals("Booking must be approved to review", ex.getMessage());
     }
 
