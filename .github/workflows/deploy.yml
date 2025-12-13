@@ -1,0 +1,26 @@
+name: deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  redeploy:
+    name: redeploy
+    runs-on: self-hosted
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create .env file
+        run: echo "${{ secrets.ENV_FILE }}" > .env
+
+      - name: Stop and clean Docker containers
+        run: docker-compose down -v || true
+
+      - name: Rebuild and restart Docker containers
+        run: docker-compose up --build -d
