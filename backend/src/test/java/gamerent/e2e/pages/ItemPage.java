@@ -1,7 +1,6 @@
 package gamerent.e2e.pages;
 
 import com.microsoft.playwright.Page;
-import com.microsoft.playwright.Locator;
 
 public class ItemPage {
     private final Page page;

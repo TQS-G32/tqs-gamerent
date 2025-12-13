@@ -228,41 +228,31 @@ class ItemServiceTest {
     }
 
     // Tests for updateItemSettings functionality
-    @Test
-    void updateItemSettings_AsOwner_ShouldUpdateAvailability() {
-        ps5.setAvailable(true);
-        when(itemRepository.findById(1L)).thenReturn(Optional.of(ps5));
-        when(bookingRepository.findByItemId(1L)).thenReturn(List.of());
-        when(itemRepository.save(any(Item.class))).thenReturn(ps5);
-
-        Item result = itemService.updateItemSettings(1L, 1L, false, null);
-
-        assertFalse(result.getAvailable());
-        verify(itemRepository).save(ps5);
-    }
-
-    @Test
-    void updateItemSettings_AsOwner_ShouldUpdateMinRentalDays() {
-        when(itemRepository.findById(1L)).thenReturn(Optional.of(ps5));
-        when(itemRepository.save(any(Item.class))).thenAnswer(i -> i.getArguments()[0]);
-
-        Item result = itemService.updateItemSettings(1L, 1L, null, 7);
-
-        assertEquals(7, result.getMinRentalDays());
-        verify(itemRepository).save(ps5);
-    }
-
-    @Test
-    void updateItemSettings_AsOwner_ShouldUpdateBothFields() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.MethodSource("updateItemSettingsProvider")
+    void updateItemSettings_AsOwner_ShouldUpdateFields(Boolean available, Integer minRentalDays, Boolean expectedAvailable, Integer expectedMinRentalDays) {
         ps5.setAvailable(false);
+        ps5.setMinRentalDays(1);
         when(itemRepository.findById(1L)).thenReturn(Optional.of(ps5));
         when(itemRepository.save(any(Item.class))).thenAnswer(i -> i.getArguments()[0]);
 
-        Item result = itemService.updateItemSettings(1L, 1L, true, 5);
+        Item result = itemService.updateItemSettings(1L, 1L, available, minRentalDays);
 
-        assertTrue(result.getAvailable());
-        assertEquals(5, result.getMinRentalDays());
+        if (expectedAvailable != null) {
+            assertEquals(expectedAvailable, result.getAvailable());
+        }
+        if (expectedMinRentalDays != null) {
+            assertEquals(expectedMinRentalDays, result.getMinRentalDays());
+        }
         verify(itemRepository).save(ps5);
+    }
+
+    private static java.util.stream.Stream<org.junit.jupiter.params.provider.Arguments> updateItemSettingsProvider() {
+        return java.util.stream.Stream.of(
+            org.junit.jupiter.params.provider.Arguments.of(false, null, false, 1), // Update availability only
+            org.junit.jupiter.params.provider.Arguments.of(null, 7, false, 7),    // Update minRentalDays only
+            org.junit.jupiter.params.provider.Arguments.of(true, 5, true, 5)      // Update both fields
+        );
     }
 
     @Test

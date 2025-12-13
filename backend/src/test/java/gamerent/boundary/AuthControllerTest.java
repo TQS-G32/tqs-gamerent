@@ -30,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(addFilters = false)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Requirement("Auth")
-public class AuthControllerTest {
+class AuthControllerTest {
 
     @MockBean
     private UserService userService;

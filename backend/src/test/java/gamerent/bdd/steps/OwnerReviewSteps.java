@@ -2,7 +2,6 @@ package gamerent.bdd.steps;
 
 import gamerent.data.*;
 import gamerent.service.ReviewService;
-import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,9 +27,6 @@ public class OwnerReviewSteps {
     private ReviewService reviewService;
     @Autowired
     private ReviewRepository reviewRepository;
-
-    private Item item;
-    private BookingRequest booking;
 
     @When("the user {string} leaves a user review with rating {int} and comment {string} for the booking")
     public void owner_leaves_user_review(String email, Integer rating, String comment) {

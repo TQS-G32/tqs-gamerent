@@ -108,7 +108,9 @@ class ReviewServiceTest {
 
         when(bookingRepository.findById(futureBooking.getId())).thenReturn(Optional.of(futureBooking));
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> reviewService.addReview(futureBooking.getUserId(), review));
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> {
+            reviewService.addReview(futureBooking.getUserId(), review);
+        });
         assertEquals("You can only review after the rental period has ended", ex.getMessage());
     }
 
@@ -143,7 +145,9 @@ class ReviewServiceTest {
         when(reviewRepository.findByBookingIdAndReviewerIdAndTargetTypeAndTargetId(anyLong(), anyLong(), any(), anyLong()))
                 .thenReturn(Optional.of(new Review()));
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> reviewService.addReview(approvedPastBooking.getUserId(), review));
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> {
+            reviewService.addReview(approvedPastBooking.getUserId(), review);
+        });
         assertEquals("You have already submitted this review", ex.getMessage());
     }
 
@@ -168,7 +172,9 @@ class ReviewServiceTest {
         review.setTargetType(ReviewTargetType.ITEM);
         // rating null
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> reviewService.addReview(approvedPastBooking.getUserId(), review));
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> {
+            reviewService.addReview(approvedPastBooking.getUserId(), review);
+        });
         assertEquals("rating must be between 1 and 5", ex.getMessage());
     }
 
@@ -187,7 +193,9 @@ class ReviewServiceTest {
 
         when(bookingRepository.findById(pending.getId())).thenReturn(Optional.of(pending));
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> reviewService.addReview(pending.getUserId(), review));
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> {
+            reviewService.addReview(pending.getUserId(), review);
+        });
         assertEquals("Booking must be approved to review", ex.getMessage());
     }
 

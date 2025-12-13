@@ -91,6 +91,8 @@ class BookingControllerIT {
     }
     
     @Test
+    @XrayTest(key = "BOOK-1")
+    @Tag("integration")
     void createBooking_ShouldReturn200AndCreateBooking() throws Exception {
         String json = """
             {
@@ -112,6 +114,8 @@ class BookingControllerIT {
     }
     
     @Test
+    @XrayTest(key = "BOOK-2")
+    @Tag("integration")
     void getMyBookings_ShouldReturn200AndListBookings() throws Exception {
         // Create a booking
         BookingRequest booking = new BookingRequest();
@@ -130,6 +134,8 @@ class BookingControllerIT {
     }
     
     @Test
+    @XrayTest(key = "BOOK-3")
+    @Tag("integration")
     void getIncomingRequests_ShouldReturn200AndListRequests() throws Exception {
         // Create a booking for owner's item
         BookingRequest booking = new BookingRequest();
@@ -148,6 +154,8 @@ class BookingControllerIT {
     }
     
     @Test
+    @XrayTest(key = "BOOK-4")
+    @Tag("integration")
     void updateStatus_ShouldReturn200AndUpdateBooking() throws Exception {
         // Create a booking
         BookingRequest booking = new BookingRequest();
@@ -171,12 +179,18 @@ class BookingControllerIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APPROVED"));
     }
+
     @Test
+    @XrayTest(key = "BOOK-5")
+    @Tag("integration")
     void getBookingsByItem_NoItemId_ShouldReturnEmpty() throws Exception {
         mockMvc.perform(get("/api/bookings"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
     }
+
+    @XrayTest(key = "BOOK-6")
+    @Tag("integration")
     @Test
     void getBookingsByItem_InvalidItemId_ShouldReturnEmpty() throws Exception {
         mockMvc.perform(get("/api/bookings?itemId=0"))

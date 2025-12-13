@@ -10,7 +10,6 @@ import gamerent.data.UserRepository;
 import gamerent.service.BookingService;
 import gamerent.service.ItemService;
 import gamerent.service.UserService;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,7 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(addFilters = false)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Requirement("US1")
-public class BookingFlowTest {
+class BookingFlowTest {
 
     @Autowired
     private MockMvc mockMvc;

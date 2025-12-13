@@ -220,7 +220,7 @@ class AuthControllerIT {
                 "password", "password123"
         );
 
-        MvcResult registerResult = mockMvc.perform(post("/api/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(registerRequest)))
                 .andExpect(status().isOk())

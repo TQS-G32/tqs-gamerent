@@ -14,7 +14,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-public class PlaywrightIT {
+class PlaywrightIT {
 
     @LocalServerPort
     private int serverPort;
