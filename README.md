@@ -70,4 +70,3 @@ The application creates default users on first startup. Their passwords are stor
    - role: `ADMIN`
 
 Passwords are hashed using BCrypt with appropriate salt before being stored in the PostgreSQL database.
-
