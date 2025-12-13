@@ -145,9 +145,7 @@ class ReviewServiceTest {
         when(reviewRepository.findByBookingIdAndReviewerIdAndTargetTypeAndTargetId(anyLong(), anyLong(), any(), anyLong()))
                 .thenReturn(Optional.of(new Review()));
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> {
-            reviewService.addReview(approvedPastBooking.getUserId(), review);
-        });
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> reviewService.addReview(approvedPastBooking.getUserId(), review));
         assertEquals("You have already submitted this review", ex.getMessage());
     }
 
@@ -172,9 +170,7 @@ class ReviewServiceTest {
         review.setTargetType(ReviewTargetType.ITEM);
         // rating null
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> {
-            reviewService.addReview(approvedPastBooking.getUserId(), review);
-        });
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> reviewService.addReview(approvedPastBooking.getUserId(), review));
         assertEquals("rating must be between 1 and 5", ex.getMessage());
     }
 
