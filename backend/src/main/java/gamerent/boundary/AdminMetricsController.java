@@ -4,6 +4,8 @@ import gamerent.boundary.dto.AdminMetricsResponse;
 import gamerent.data.UserRepository;
 import gamerent.data.ItemRepository;
 import gamerent.data.BookingRepository;
+import gamerent.data.DisputeStatus;
+import gamerent.data.DisputeRepository;
 import gamerent.data.BookingRequest;
 import gamerent.data.BookingStatus;
 import gamerent.data.PaymentStatus;
@@ -31,12 +33,14 @@ public class AdminMetricsController {
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;
     private final BookingRepository bookingRepository;
+    private final DisputeRepository disputeRepository;
 
     @Autowired
-    public AdminMetricsController(UserRepository userRepository, ItemRepository itemRepository, BookingRepository bookingRepository) {
+    public AdminMetricsController(UserRepository userRepository, ItemRepository itemRepository, BookingRepository bookingRepository, DisputeRepository disputeRepository) {
         this.userRepository = userRepository;
         this.itemRepository = itemRepository;
         this.bookingRepository = bookingRepository;
+        this.disputeRepository = disputeRepository;
     }
 
     @GetMapping("/metrics")
@@ -58,7 +62,8 @@ public class AdminMetricsController {
         int activeListings = (int) itemRepository.count();
         int totalBookings = (int) bookingRepository.count();
         double monthlyRevenue = calculateMonthlyRevenue();
-        int openIssues = 0; // No disputes/issues entity found
+        int openIssues = disputeRepository.findByStatus(DisputeStatus.SUBMITTED).size() 
+                        + disputeRepository.findByStatus(DisputeStatus.UNDER_REVIEW).size();
 
         logger.log(Level.INFO, "Admin metrics calculated - Accounts: {0}, Listings: {1}, Bookings: {2}, Revenue: ${3}", 
             new Object[]{totalAccounts, activeListings, totalBookings, monthlyRevenue});

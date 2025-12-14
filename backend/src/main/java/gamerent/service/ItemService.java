@@ -8,6 +8,8 @@ import gamerent.data.BookingRepository;
 import gamerent.data.BookingRequest;
 import gamerent.data.BookingStatus;
 import gamerent.data.User;
+import gamerent.config.ItemValidationException;
+import gamerent.config.UnauthorizedException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -20,7 +22,10 @@ import org.springframework.data.domain.Pageable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Random;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Service
 public class ItemService {
@@ -28,6 +33,9 @@ public class ItemService {
     private final IgdbService igdbService;
     private final BookingRepository bookingRepository;
     private final Random random = new Random();
+    private static final String PLATFORM_LOGO = "platform_logo";
+    private static final String COVER = "cover";
+    private static final Logger logger = Logger.getLogger(ItemService.class.getName());
 
     public ItemService(ItemRepository itemRepository, IgdbService igdbService, BookingRepository bookingRepository) {
         this.itemRepository = itemRepository;
@@ -130,7 +138,12 @@ public class ItemService {
         for (int i = 0; i < games.size(); i++) {
             JsonNode game = games.get(i);
             String name = game.get("name").asText();
-            String description = game.has("summary") ? game.get("summary").asText() : "A great game";
+            String description = "";
+            if (game.has("summary")){
+                description = game.get("summary").asText();
+            } else {
+                description = "A great game";
+            }
             // Truncate description to fit database limit (2048 chars)
             if (description.length() > 2048) {
                 description = description.substring(0, 2045) + "...";
@@ -161,8 +174,8 @@ public class ItemService {
             String consoleName = platform.get("name").asText();
             String imageUrl = null;
 
-            if (platform.has("platform_logo") && platform.get("platform_logo").has("url")) {
-                String url = platform.get("platform_logo").get("url").asText();
+            if (platform.has(PLATFORM_LOGO) && platform.get(PLATFORM_LOGO).has("url")) {
+                String url = platform.get(PLATFORM_LOGO).get("url").asText();
                 if (url.startsWith("//")) {
                     url = "https:" + url;
                 }
@@ -204,9 +217,9 @@ public class ItemService {
 
     // Owner-only update of availability and minimum rental days
     public Item updateItemSettings(Long itemId, Long ownerId, Boolean available, Integer minRentalDays) {
-        Item item = itemRepository.findById(itemId).orElseThrow(() -> new RuntimeException("Item not found"));
+        Item item = itemRepository.findById(itemId).orElseThrow(() -> new NoSuchElementException("Item not found"));
         if (item.getOwner() == null || !item.getOwner().getId().equals(ownerId)) {
-            throw new RuntimeException("Unauthorized: You are not the owner of this item");
+            throw new UnauthorizedException("Unauthorized: You are not the owner of this item");
         }
 
         updateMinimalRentalDays(item, minRentalDays);
@@ -218,7 +231,7 @@ public class ItemService {
     private void updateMinimalRentalDays(Item item, Integer minRentalDays) {
         if (minRentalDays != null) {
             if (minRentalDays < 1 || minRentalDays > 30) {
-                throw new RuntimeException("Minimum rental days must be between 1 and 30");
+                throw new ItemValidationException("Minimum rental days must be between 1 and 30");
             }
             item.setMinRentalDays(minRentalDays);
         }
@@ -242,7 +255,7 @@ public class ItemService {
         for (BookingRequest b : bookingRepository.findByItemId(itemId)) {
             if ((b.getStatus() == BookingStatus.APPROVED || b.getStatus() == BookingStatus.PENDING) &&
                 (b.getEndDate() != null && !b.getEndDate().isBefore(today))) {
-                throw new RuntimeException("Item has active or confirmed bookings and cannot be set to Inactive");
+                throw new ItemValidationException("Item has active or confirmed bookings and cannot be set to Inactive");
             }
         }
     }
@@ -268,14 +281,14 @@ public class ItemService {
 
             List<JsonNode> result = new ArrayList<>();
             for (JsonNode platform : platforms) {
-                if (platform.has("platform_logo") && platform.get("platform_logo").has("url")) {
+                if (platform.has(PLATFORM_LOGO) && platform.get(PLATFORM_LOGO).has("url")) {
                     result.add(platform);
                 }
             }
 
             return result;
         } catch (Exception e) {
-            System.err.println("Error fetching popular platforms: " + e.getMessage());
+            logger.log(Level.WARNING, "Error fetching user disputes - {0}", e.getMessage());
             return Collections.emptyList();
         }
     }
@@ -296,8 +309,8 @@ public class ItemService {
     }
 
     private String getImageUrl(JsonNode game) {
-        if (game.has("cover") && game.get("cover").has("url")) {
-            String url = game.get("cover").get("url").asText();
+        if (game.has(COVER) && game.get(COVER).has("url")) {
+            String url = game.get(COVER).get("url").asText();
             // IGDB returns URLs starting with //, we need to add https:
             if (url.startsWith("//")) {
                 url = "https:" + url;

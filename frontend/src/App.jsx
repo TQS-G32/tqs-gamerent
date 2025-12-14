@@ -3,6 +3,7 @@ import { Link, Route, BrowserRouter as Router, Routes, useNavigate } from "react
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import AuthPage from "./pages/AuthPage.jsx";
 import Bookings from "./pages/Bookings.jsx";
+import Disputes from "./pages/Disputes.jsx";
 import Home from "./pages/Home.jsx";
 import ItemDetails from "./pages/ItemDetails.jsx";
 import PostItem from "./pages/PostItem.jsx";
@@ -34,6 +35,7 @@ function NavBar({ user }) {
 
         <div className="nav-actions">
             <Link to="/bookings" className="nav-link">My Items</Link>
+            <Link to="/disputes" className="nav-link">Disputes</Link>
             <Link to="/post-item" className="btn btn-primary">Rent your gear</Link>
             {currentUser ? (
               <>
@@ -106,6 +108,7 @@ export default function App() {
         <Route path="/item/:id" element={<ItemDetails />} />
         <Route path="/member/:id" element={<UserProfile />} />
         <Route path="/bookings" element={<Bookings />} />
+        <Route path="/disputes" element={<Disputes />} />
         <Route path="/auth" element={<AuthPage onAuth={handleAuth} />} />
         <Route path="/admin" element={user && user.role === 'ADMIN' ? <AdminDashboard /> : <div style={{padding:'2rem',color:'red'}}>Access denied</div>} />
       </Routes>

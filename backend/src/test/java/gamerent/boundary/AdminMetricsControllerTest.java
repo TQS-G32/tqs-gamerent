@@ -44,6 +44,9 @@ class AdminMetricsControllerTest {
     @MockBean
     private BookingRepository bookingRepository;
 
+    @MockBean
+    private DisputeRepository disputeRepository;
+
     private MockHttpSession adminSession;
     private MockHttpSession userSession;
     private MockHttpSession noSession;
@@ -73,6 +76,8 @@ class AdminMetricsControllerTest {
         given(itemRepository.count()).willReturn(25L);
         given(bookingRepository.count()).willReturn(50L);
         given(bookingRepository.findAll()).willReturn(Collections.emptyList());
+        given(disputeRepository.findByStatus(DisputeStatus.SUBMITTED)).willReturn(Collections.emptyList());
+        given(disputeRepository.findByStatus(DisputeStatus.UNDER_REVIEW)).willReturn(Collections.emptyList());
 
         // When & Then
         mockMvc.perform(get("/api/admin/metrics")
@@ -130,6 +135,8 @@ class AdminMetricsControllerTest {
         given(bookingRepository.findAll()).willReturn(Arrays.asList(
                 paidBooking1, paidBooking2, unpaidBooking, pendingBooking, lastMonthBooking
         ));
+        given(disputeRepository.findByStatus(DisputeStatus.SUBMITTED)).willReturn(Collections.emptyList());
+        given(disputeRepository.findByStatus(DisputeStatus.UNDER_REVIEW)).willReturn(Collections.emptyList());
 
         // Expected revenue: (100 + 200) * 0.2 = 60.0
         // When & Then
@@ -152,6 +159,8 @@ class AdminMetricsControllerTest {
         given(itemRepository.count()).willReturn(0L);
         given(bookingRepository.count()).willReturn(0L);
         given(bookingRepository.findAll()).willReturn(Collections.emptyList());
+        given(disputeRepository.findByStatus(DisputeStatus.SUBMITTED)).willReturn(Collections.emptyList());
+        given(disputeRepository.findByStatus(DisputeStatus.UNDER_REVIEW)).willReturn(Collections.emptyList());
 
         // When & Then
         mockMvc.perform(get("/api/admin/metrics")
@@ -177,6 +186,8 @@ class AdminMetricsControllerTest {
         given(itemRepository.count()).willReturn(1L);
         given(bookingRepository.count()).willReturn(1L);
         given(bookingRepository.findAll()).willReturn(Collections.singletonList(bookingWithNullPrice));
+        given(disputeRepository.findByStatus(DisputeStatus.SUBMITTED)).willReturn(Collections.emptyList());
+        given(disputeRepository.findByStatus(DisputeStatus.UNDER_REVIEW)).willReturn(Collections.emptyList());
 
         // When & Then
         mockMvc.perform(get("/api/admin/metrics")
@@ -201,6 +212,8 @@ class AdminMetricsControllerTest {
         given(itemRepository.count()).willReturn(3L);
         given(bookingRepository.count()).willReturn(3L);
         given(bookingRepository.findAll()).willReturn(Arrays.asList(approved, rejected, cancelled));
+        given(disputeRepository.findByStatus(DisputeStatus.SUBMITTED)).willReturn(Collections.emptyList());
+        given(disputeRepository.findByStatus(DisputeStatus.UNDER_REVIEW)).willReturn(Collections.emptyList());
 
         // Expected revenue: only approved booking = 100 * 0.2 = 20.0
         // When & Then
@@ -209,6 +222,42 @@ class AdminMetricsControllerTest {
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.monthlyRevenue").value(20.0));
+    }
+
+    @Test
+    @XrayTest(key = "ADMIN-UNIT-8")
+    @Tag("unit")
+    void getMetrics_WithOpenDisputes_ShouldCountSubmittedAndUnderReview() throws Exception {
+        // Given
+        Dispute dispute1 = new Dispute();
+        dispute1.setStatus(DisputeStatus.SUBMITTED);
+        
+        Dispute dispute2 = new Dispute();
+        dispute2.setStatus(DisputeStatus.SUBMITTED);
+        
+        Dispute dispute3 = new Dispute();
+        dispute3.setStatus(DisputeStatus.UNDER_REVIEW);
+        
+        Dispute dispute4 = new Dispute();
+        dispute4.setStatus(DisputeStatus.RESOLVED);
+
+        given(userRepository.count()).willReturn(5L);
+        given(itemRepository.count()).willReturn(10L);
+        given(bookingRepository.count()).willReturn(15L);
+        given(bookingRepository.findAll()).willReturn(Collections.emptyList());
+        given(disputeRepository.findByStatus(DisputeStatus.SUBMITTED)).willReturn(Arrays.asList(dispute1, dispute2));
+        given(disputeRepository.findByStatus(DisputeStatus.UNDER_REVIEW)).willReturn(Collections.singletonList(dispute3));
+
+        // Expected open issues: 2 SUBMITTED + 1 UNDER_REVIEW = 3
+        // When & Then
+        mockMvc.perform(get("/api/admin/metrics")
+                .session(adminSession)
+                .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalAccounts").value(5))
+                .andExpect(jsonPath("$.activeListings").value(10))
+                .andExpect(jsonPath("$.totalBookings").value(15))
+                .andExpect(jsonPath("$.openIssues").value(3));
     }
 
     // Helper method to create booking requests

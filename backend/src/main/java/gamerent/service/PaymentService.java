@@ -4,6 +4,9 @@ import gamerent.data.BookingRepository;
 import gamerent.data.BookingRequest;
 import gamerent.data.BookingStatus;
 import gamerent.data.PaymentStatus;
+import gamerent.config.BookingValidationException;
+import gamerent.config.PaymentException;
+import gamerent.config.UnauthorizedException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -62,19 +65,19 @@ public class PaymentService {
 
         validateBookingOwnership(booking, currentUserId);
         if (booking.getStatus() != BookingStatus.APPROVED) {
-            throw new RuntimeException("Booking is not approved");
+            throw new BookingValidationException("Booking is not approved");
         }
         expireIfPastDue(booking);
         if (booking.getPaymentStatus() == PaymentStatus.PAID) {
             return booking;
         }
         if (booking.getStripeCheckoutSessionId() == null || !booking.getStripeCheckoutSessionId().equals(sessionId)) {
-            throw new RuntimeException("Invalid Stripe session for booking");
+            throw new PaymentException("Invalid Stripe session for booking");
         }
 
         StripeCheckoutSession session = stripeGateway.retrieveCheckoutSession(sessionId);
         if (session.paymentStatus() == null || !"paid".equalsIgnoreCase(session.paymentStatus())) {
-            throw new RuntimeException("Payment not completed");
+            throw new PaymentException("Payment not completed");
         }
 
         booking.setPaymentStatus(PaymentStatus.PAID);
@@ -87,19 +90,19 @@ public class PaymentService {
 
     private void validateBookingOwnership(BookingRequest booking, Long currentUserId) {
         if (currentUserId == null) {
-            throw new RuntimeException("Unauthorized");
+            throw new UnauthorizedException("Unauthorized");
         }
         if (booking.getUserId() == null || !booking.getUserId().equals(currentUserId)) {
-            throw new RuntimeException("Unauthorized: You are not the renter of this booking");
+            throw new UnauthorizedException("Unauthorized: You are not the renter of this booking");
         }
     }
 
     private void validateBookingApprovedAndUnpaid(BookingRequest booking) {
         if (booking.getStatus() != BookingStatus.APPROVED) {
-            throw new RuntimeException("Booking is not approved");
+            throw new BookingValidationException("Booking is not approved");
         }
         if (booking.getPaymentStatus() == PaymentStatus.PAID) {
-            throw new RuntimeException("Booking already paid");
+            throw new BookingValidationException("Booking already paid");
         }
     }
 
@@ -110,7 +113,7 @@ public class PaymentService {
         if (dueAt != null && LocalDateTime.now().isAfter(dueAt)) {
             booking.setStatus(BookingStatus.CANCELLED);
             bookingRepository.save(booking);
-            throw new RuntimeException("Payment window expired. Booking cancelled.");
+            throw new PaymentException("Payment window expired. Booking cancelled.");
         }
     }
 

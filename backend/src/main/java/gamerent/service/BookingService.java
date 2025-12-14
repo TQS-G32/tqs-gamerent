@@ -6,6 +6,8 @@ import gamerent.data.BookingStatus;
 import gamerent.data.Item;
 import gamerent.data.ItemRepository;
 import gamerent.data.PaymentStatus;
+import gamerent.config.BookingValidationException;
+import gamerent.config.UnauthorizedException;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -14,6 +16,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.NoSuchElementException;
 
 @Service
 public class BookingService {
@@ -34,7 +37,7 @@ public class BookingService {
         Item item = itemRepository.findById(itemId)
             .orElseThrow(() -> {
                 logger.log(Level.WARNING, "Booking creation failed - Item not found: {0}", itemId);
-                return new RuntimeException("Item not found");
+                return new NoSuchElementException("Item not found");
             });
 
         validateOwnership(item, userId);
@@ -53,26 +56,26 @@ public class BookingService {
         if (item.getOwner().getId().equals(userId)) {
             logger.log(Level.WARNING, "User {0} attempted to rent their own item {1}", 
                 new Object[]{userId, item.getId()});
-            throw new RuntimeException("You cannot rent your own item");
+            throw new BookingValidationException("You cannot rent your own item");
         }
     }
 
     private void validateItemAvailability(Item item) {
         if (item.getAvailable() == null || !item.getAvailable()) {
             logger.log(Level.WARNING, "Booking attempt on unavailable item: {0}", item.getId());
-            throw new RuntimeException("Item is currently not available for rent");
+            throw new BookingValidationException("Item is currently not available for rent");
         }
     }
 
     private void validateDates(LocalDate start, LocalDate end) {
         if (start == null || end == null) {
-            throw new RuntimeException("Start and end dates required");
+            throw new BookingValidationException("Start and end dates required");
         }
         if (start.isAfter(end)) {
-            throw new RuntimeException("Start date must be before end date");
+            throw new BookingValidationException("Start date must be before end date");
         }
         if (start.isBefore(LocalDate.now()) || end.isBefore(LocalDate.now())) {
-            throw new RuntimeException("Start and End date must be in the future");
+            throw new BookingValidationException("Start and End date must be in the future");
         }
     }
 
@@ -80,7 +83,7 @@ public class BookingService {
         List<BookingRequest> existing = bookingRepository.findByItemIdAndStatus(itemId, BookingStatus.APPROVED);
         for (BookingRequest b : existing) {
             if (isOverlapping(start, end, b.getStartDate(), b.getEndDate())) {
-                throw new RuntimeException("Item is not available for these dates");
+                throw new BookingValidationException("Item is not available for these dates");
             }
         }
     }
@@ -90,7 +93,7 @@ public class BookingService {
         if (days <= 0) days = 1;
         Integer minDays = item.getMinRentalDays() == null ? 1 : item.getMinRentalDays();
         if (minDays != null && days < minDays) {
-            throw new RuntimeException("Minimum rental period is " + minDays + " day(s)");
+            throw new BookingValidationException("Minimum rental period is " + minDays + " day(s)");
         }
     }
 
@@ -117,14 +120,14 @@ public class BookingService {
         BookingRequest booking = bookingRepository.findById(bookingId)
             .orElseThrow(() -> {
                 logger.log(Level.WARNING, "Status update failed - Booking not found: {0}", bookingId);
-                return new RuntimeException("Booking not found");
+                return new NoSuchElementException("Booking not found");
             });
             
         Item item = itemRepository.findById(booking.getItemId())
-            .orElseThrow(() -> new RuntimeException("Item not found"));
+            .orElseThrow(() -> new NoSuchElementException("Item not found"));
             
         if (!item.getOwner().getId().equals(ownerId)) {
-            throw new RuntimeException("Unauthorized: You are not the owner of this item");
+            throw new UnauthorizedException("Unauthorized: You are not the owner of this item");
         }
         
         // If transitioning to APPROVED for the first time, store approval + payment deadline
@@ -182,9 +185,8 @@ public class BookingService {
         if (bookings == null || bookings.isEmpty()) return;
         LocalDateTime now = LocalDateTime.now();
         for (BookingRequest b : bookings) {
-            if (b == null) continue;
-            if (b.getStatus() != BookingStatus.APPROVED) continue;
-            if (b.getPaymentStatus() == PaymentStatus.PAID) continue;
+            if ((b == null) || (b.getStatus() != BookingStatus.APPROVED) || (b.getPaymentStatus() == PaymentStatus.PAID))
+                continue;
             LocalDateTime dueAt = b.getPaymentDueAt();
             if (dueAt != null && now.isAfter(dueAt)) {
                 b.setStatus(BookingStatus.CANCELLED);

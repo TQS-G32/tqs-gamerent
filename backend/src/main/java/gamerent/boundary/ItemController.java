@@ -8,8 +8,6 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
@@ -17,11 +15,14 @@ import org.springframework.http.HttpStatus;
 @RequestMapping("/api/items")
 @CrossOrigin(origins = "*")
 public class ItemController {
-    private static final Logger logger = Logger.getLogger(ItemController.class.getName());
     private final ItemService itemService;
     private final UserRepository userRepository;
     private static final int DEFAULT_PAGE_SIZE = 10;
     private static final String USER_ID_KEY = "userId";
+    private static final String ITEMS = "items";
+    private static final String PAGESIZE = "pageSize";
+    private static final String TOTALCOUNT = "totalCount";
+    private static final String TOTALPAGES = "totalPages";
 
     public ItemController(ItemService itemService, UserRepository userRepository) {
         this.itemService = itemService;
@@ -45,11 +46,11 @@ public class ItemController {
         List<Item> items = start >= totalCount ? List.of() : allResults.subList(start, end);
         
         return Map.of(
-            "items", items,
+            ITEMS, items,
             "page", page,
-            "pageSize", DEFAULT_PAGE_SIZE,
-            "totalCount", totalCount,
-            "totalPages", totalPages
+            PAGESIZE, DEFAULT_PAGE_SIZE,
+            TOTALCOUNT, totalCount,
+            TOTALPAGES, totalPages
         );
     }
 
@@ -64,11 +65,11 @@ public class ItemController {
             int totalCount = itemService.getItemsByOwnerCount(ownerId);
             int totalPages = (totalCount + safePageSize - 1) / safePageSize;
             return Map.of(
-                    "items", items,
+                    ITEMS, items,
                     "page", page,
-                    "pageSize", safePageSize,
-                    "totalCount", totalCount,
-                    "totalPages", totalPages
+                    PAGESIZE, safePageSize,
+                    TOTALCOUNT, totalCount,
+                    TOTALPAGES, totalPages
             );
         }
         List<Item> allItems = itemService.getAllItems();
@@ -83,11 +84,11 @@ public class ItemController {
         List<Item> items = start >= totalCount ? List.of() : allItems.subList(start, end);
         
         return Map.of(
-            "items", items,
+            ITEMS, items,
             "page", page,
-            "pageSize", safePageSize,
-            "totalCount", totalCount,
-            "totalPages", totalPages
+            PAGESIZE, safePageSize,
+            TOTALCOUNT, totalCount,
+            TOTALPAGES, totalPages
         );
     }
     
@@ -108,11 +109,11 @@ public class ItemController {
         List<Item> items = start >= totalCount ? List.of() : allResults.subList(start, end);
         
         return Map.of(
-            "items", items,
+            ITEMS, items,
             "page", page,
-            "pageSize", DEFAULT_PAGE_SIZE,
-            "totalCount", totalCount,
-            "totalPages", totalPages
+            PAGESIZE, DEFAULT_PAGE_SIZE,
+            TOTALCOUNT, totalCount,
+            TOTALPAGES, totalPages
         );
     }
 

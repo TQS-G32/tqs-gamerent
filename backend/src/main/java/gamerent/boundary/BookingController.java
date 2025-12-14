@@ -41,8 +41,6 @@ public class BookingController {
                 new Object[]{created.getId(), created.getTotalPrice()});
             return created;
         } catch (RuntimeException e) {
-            logger.log(Level.WARNING, "Booking creation failed - User: {0}, Item: {1}, Error: {2}", 
-                new Object[]{userId, booking.getItemId(), e.getMessage()});
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
     }
@@ -91,8 +89,6 @@ public class BookingController {
                 new Object[]{id, status});
             return updated;
         } catch (RuntimeException e) {
-            logger.log(Level.WARNING, "Booking status update failed - ID: {0}, Error: {1}", 
-                new Object[]{id, e.getMessage()});
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
     }

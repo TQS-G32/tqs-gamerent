@@ -44,7 +44,7 @@ public class UserService {
         var reviews = reviewRepository.findByTargetTypeAndTargetId(ReviewTargetType.USER, userId);
 
         DoubleSummaryStatistics stats = reviews.stream()
-                .map(Review -> Review.getRating() != null ? Review.getRating() : 0)
+                .map(review -> review.getRating() != null ? review.getRating() : 0)
                 .mapToDouble(Integer::doubleValue)
                 .summaryStatistics();
 

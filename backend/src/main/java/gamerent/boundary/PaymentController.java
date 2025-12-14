@@ -44,8 +44,6 @@ public class PaymentController {
                 new Object[]{body.bookingId(), session.id()});
             return new CheckoutSessionResponse(session.url(), session.id());
         } catch (RuntimeException e) {
-            logger.log(Level.WARNING, "Checkout session creation failed - Booking: {0}, Error: {1}", 
-                new Object[]{body.bookingId(), e.getMessage()});
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
     }
@@ -61,8 +59,6 @@ public class PaymentController {
                 new Object[]{body.bookingId(), confirmed.getTotalPrice()});
             return confirmed;
         } catch (RuntimeException e) {
-            logger.log(Level.WARNING, "Payment confirmation failed - Booking: {0}, Error: {1}", 
-                new Object[]{body.bookingId(), e.getMessage()});
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
     }
