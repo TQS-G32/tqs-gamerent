@@ -11,7 +11,7 @@ export default function Bookings() {
   const [listingsTotalCount, setListingsTotalCount] = useState(0);
   const [listingsLoading, setListingsLoading] = useState(false);
   const [itemsMap, setItemsMap] = useState({}); // Map of itemId -> Item data
-  const [activeTab, setActiveTab] = useState('listings'); // 'rentals', 'listings', 'requests'
+  const [activeTab, setActiveTab] = useState('listings'); // 'rentals', 'listings', 'requests', 'owner-bookings'
   const [editingItemId, setEditingItemId] = useState(null); // For inline editing
   const [editForm, setEditForm] = useState({ available: true, minRentalDays: 1 });
   const [reviewDrafts, setReviewDrafts] = useState({});
@@ -19,6 +19,8 @@ export default function Bookings() {
   const [bookingReviews, setBookingReviews] = useState({});
   const listingsObserverRef = useRef(null);
   const listingsSentinelRef = useRef(null);
+  const [showCancelledRentals, setShowCancelledRentals] = useState(false);
+  const [showCancelledOwnerBookings, setShowCancelledOwnerBookings] = useState(false);
   
   const userJson = window.localStorage.getItem('user');
   const currentUser = userJson ? JSON.parse(userJson) : null;
@@ -106,6 +108,64 @@ export default function Bookings() {
     setListingsTotalCount(0);
     setListingsLoading(false);
   }, []);
+
+  // Handle Stripe success redirect back to /bookings?payment_success=1&bookingId=...&session_id=...
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search || '');
+    const success = params.get('payment_success');
+    const bookingId = params.get('bookingId');
+    const sessionId = params.get('session_id');
+    if (success === '1' && bookingId && sessionId) {
+      fetch('/api/payments/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ bookingId: Number(bookingId), sessionId })
+      })
+        .then(async res => {
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || 'Failed to confirm payment');
+          }
+          return res.json();
+        })
+        .then(() => {
+          // refresh bookings so paymentStatus updates
+          return fetch('/api/bookings/my-bookings', { credentials: 'include' })
+            .then(res => res.json())
+            .then(data => setBookings(data));
+        })
+        .catch(err => console.error(err))
+        .finally(() => {
+          // Clean URL to avoid repeated confirmations on refresh
+          window.history.replaceState({}, document.title, window.location.pathname);
+        });
+    }
+  }, []);
+
+  const startPayment = async (bookingId) => {
+    const ok = window.confirm(
+      'Test payment (Stripe sandbox)\n\n' +
+      'Use card: 4242 4242 4242 4242\n' +
+      'Any future expiry date, any CVC, any ZIP.\n\n' +
+      'Continue to Stripe Checkout?'
+    );
+    if (!ok) return;
+
+    const res = await fetch('/api/payments/checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ bookingId })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to start payment');
+    }
+    const data = await res.json();
+    if (!data?.url) throw new Error('Stripe URL missing');
+    window.location.href = data.url;
+  };
 
   // Fetch listings paginated (infinite scroll)
   useEffect(() => {
@@ -260,6 +320,129 @@ export default function Bookings() {
       return <span style={{color: colors[status] || '#333', fontWeight: 600, fontSize: '0.85rem', textTransform: 'uppercase'}}>{icons[status]} {status}</span>;
   }
 
+  const StatusPill = ({ label, tone = 'neutral' }) => {
+    const palette = {
+      success: { bg: '#d4edda', fg: '#155724', border: '#c3e6cb' },
+      warning: { bg: '#fff3cd', fg: '#856404', border: '#ffeeba' },
+      danger: { bg: '#f8d7da', fg: '#721c24', border: '#f5c6cb' },
+      info: { bg: '#e7f3ff', fg: '#004085', border: '#b3d9ff' },
+      neutral: { bg: '#f2f2f2', fg: '#333', border: '#e0e0e0' }
+    };
+    const c = palette[tone] || palette.neutral;
+    return (
+      <span style={{
+        fontSize: '0.78rem',
+        padding: '3px 10px',
+        borderRadius: '999px',
+        background: c.bg,
+        color: c.fg,
+        border: `1px solid ${c.border}`,
+        fontWeight: 800,
+        letterSpacing: '0.02em',
+        textTransform: 'uppercase'
+      }}>
+        {label}
+      </span>
+    );
+  };
+
+  const asDate = (d) => (d ? new Date(d) : null);
+
+  const getRentalUi = (booking, perspective = 'renter') => {
+    const now = new Date();
+    const start = asDate(booking.startDate);
+    const end = asDate(booking.endDate);
+    const due = asDate(booking.paymentDueAt);
+    const paymentStatus = booking.paymentStatus || 'UNPAID';
+    const isPaid = paymentStatus === 'PAID';
+
+    const status = booking.status;
+    // Single primary status chip + grouping + next steps
+    let primaryChip = { label: 'Status', tone: 'neutral' };
+    let group = 'other';
+    let headline = '';
+    let helper = '';
+    let showPay = false;
+    let payUntilText = '';
+
+    const isExpired = status === 'APPROVED' && !isPaid && !!due && now > due;
+    const isActive = status === 'APPROVED' && isPaid && start && end && now >= start && now <= end;
+    const isUpcoming = status === 'APPROVED' && isPaid && start && now < start;
+    const isPast = status === 'APPROVED' && isPaid && end && now > end;
+
+    if (status === 'APPROVED' && !isPaid) {
+      if (isExpired) {
+        primaryChip = { label: 'Payment expired', tone: 'danger' };
+        group = 'cancelled';
+        headline = 'Payment window expired';
+        helper = perspective === 'owner'
+          ? 'Renter did not pay in time. This booking is effectively cancelled.'
+          : 'This booking can no longer be paid and will be cancelled on the next payment attempt.';
+      } else {
+        primaryChip = { label: 'Awaiting payment', tone: 'warning' };
+        group = 'awaiting_payment';
+        headline = perspective === 'owner' ? 'Waiting for renter payment' : 'Action required: pay to confirm';
+        helper = perspective === 'owner'
+          ? 'You approved this booking. It becomes confirmed only after the renter pays.'
+          : 'This booking is approved, but it only becomes active after payment.\n\nTest payment tip: use card 4242 4242 4242 4242 (any future expiry, any CVC/ZIP).';
+        showPay = perspective !== 'owner';
+        if (due) payUntilText = `Pay until ${due.toLocaleString()}`;
+      }
+    } else if (status === 'APPROVED' && isPaid) {
+      if (isActive) {
+        primaryChip = { label: 'Active rental', tone: 'success' };
+        group = 'active';
+        headline = 'Active rental';
+        helper = perspective === 'owner'
+          ? 'Rental is active. Coordinate delivery/return with the renter.'
+          : 'Enjoy your rental. Reviews unlock after the rental ends.';
+      } else if (isUpcoming) {
+        primaryChip = { label: 'Upcoming rental', tone: 'info' };
+        group = 'upcoming';
+        headline = 'Upcoming rental';
+        helper = perspective === 'owner'
+          ? 'Payment received. Rental starts on the start date.'
+          : 'You’re all set. The rental becomes active on the start date.';
+      } else if (isPast) {
+        primaryChip = { label: 'Finished', tone: 'neutral' };
+        group = 'past';
+        headline = 'Finished rental';
+        helper = perspective === 'owner'
+          ? 'Rental ended. You can review the renter if you haven’t yet.'
+          : 'Rental ended. You can leave reviews if you haven’t yet.';
+      } else {
+        primaryChip = { label: 'Confirmed', tone: 'success' };
+        group = 'upcoming';
+        headline = 'Confirmed rental';
+        helper = 'Payment confirmed.';
+      }
+    } else if (status === 'PENDING') {
+      group = 'pending';
+      primaryChip = { label: perspective === 'owner' ? 'Needs decision' : 'Waiting approval', tone: 'info' };
+      headline = perspective === 'owner' ? 'Owner action required' : 'Waiting for owner approval';
+      helper = perspective === 'owner'
+        ? 'Approve to allow renter to pay, or reject to decline.'
+        : 'You’ll be able to pay after the owner approves.';
+    } else if (status === 'REJECTED') {
+      group = 'cancelled';
+      primaryChip = { label: 'Rejected', tone: 'danger' };
+      headline = 'Request rejected';
+      helper = 'Try another listing or different dates.';
+    } else if (status === 'CANCELLED') {
+      group = 'cancelled';
+      primaryChip = { label: 'Cancelled', tone: 'danger' };
+      headline = 'Booking cancelled';
+      helper = 'This booking is no longer active.';
+    } else {
+      group = 'other';
+      primaryChip = { label: status, tone: 'neutral' };
+      headline = 'Booking status';
+      helper = 'See details.';
+    }
+
+    return { primaryChip, group, headline, helper, showPay, payUntilText, isPaid };
+  };
+
   const getOwnerInitial = (item) => {
     return item && item.owner ? item.owner.name.charAt(0).toUpperCase() : 'U';
   };
@@ -278,9 +461,14 @@ export default function Bookings() {
             🛒 My Rentals ({bookings.length})
           </div>
           {isOwner && (
-            <div className={`tab ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
-              📬 Requests ({requests.filter(r => r.status === 'PENDING').length})
-            </div>
+            <>
+              <div className={`tab ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
+                📬 Requests ({requests.filter(r => r.status === 'PENDING').length})
+              </div>
+              <div className={`tab ${activeTab === 'owner-bookings' ? 'active' : ''}`} onClick={() => setActiveTab('owner-bookings')}>
+                📅 Bookings ({requests.filter(r => r.status !== 'PENDING').length})
+              </div>
+            </>
           )}
       </div>
 
@@ -405,56 +593,106 @@ export default function Bookings() {
                 <Link to="/" className="btn btn-primary" style={{marginTop: '16px'}}>Browse items</Link>
               </div>
             ) : (
-                <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
-                    {bookings.map(booking => {
+                <div style={{display: 'flex', flexDirection: 'column', gap: '18px'}}>
+                  {(() => {
+                    const groups = {
+                      active: [],
+                      upcoming: [],
+                      awaiting_payment: [],
+                      pending: [],
+                      past: [],
+                      cancelled: [],
+                      other: []
+                    };
+                    bookings.forEach(b => {
+                      const ui = getRentalUi(b, 'renter');
+                      (groups[ui.group] || groups.other).push({ booking: b, ui });
+                    });
+                    const order = [
+                      { key: 'active', title: '🟢 Active rentals' },
+                      { key: 'upcoming', title: '🗓️ Upcoming rentals' },
+                      { key: 'awaiting_payment', title: '💳 Awaiting payment' },
+                      { key: 'pending', title: '⏳ Waiting for approval' },
+                      { key: 'past', title: '🏁 Past rentals' },
+                      { key: 'cancelled', title: '🧾 Cancelled / rejected' }
+                    ];
+
+                    const renderBookingCard = (booking, ui) => {
                       const item = itemsMap[booking.itemId];
+                      const canReview = canReviewBooking(booking) && ui.isPaid;
+
                       return (
                         <div
                           key={booking.id}
                           className="sidebar-card"
                           style={{
-                            position:'relative',
                             display: 'grid',
-                            gridTemplateColumns: '240px 1fr',
+                            gridTemplateColumns: '220px 1fr',
                             gap: '16px',
                             alignItems: 'flex-start'
                           }}
                         >
-                            {booking.status === 'APPROVED' && (
-                              <span style={{position:'absolute', top:'10px', right:'10px', color:'#2ecc71', fontWeight:700}}>✓ APPROVED</span>
-                            )}
-                            <div style={{display:'flex', flexDirection:'column', gap:'10px', minWidth:'200px'}}>
-                              <div style={{width: '100%', aspectRatio: '1 / 1', borderRadius: '8px', overflow: 'hidden', background: '#eee'}}>
-                                {item && item.imageUrl ? (
-                                  <img src={item.imageUrl} alt={item?.name} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
-                                ) : (
-                                  <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc'}}>
-                                    Loading...
-                                  </div>
+                          <div style={{display:'flex', flexDirection:'column', gap:'10px', minWidth:'200px'}}>
+                            <div style={{width: '100%', aspectRatio: '1 / 1', borderRadius: '8px', overflow: 'hidden', background: '#eee'}}>
+                              {item && item.imageUrl ? (
+                                <img src={item.imageUrl} alt={item?.name} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                              ) : (
+                                <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc'}}>
+                                  Loading...
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+                            <div style={{display:'flex', justifyContent:'space-between', gap:'12px', flexWrap:'wrap'}}>
+                              <div style={{minWidth: '240px'}}>
+                                <div style={{fontWeight: 800, fontSize: '1.05rem', lineHeight:1.2}}>
+                                  {item ? item.name : `Item #${booking.itemId}`}
+                                </div>
+                                <div style={{color: '#666', fontSize: '0.9rem', marginTop:'6px'}}>
+                                  📅 {new Date(booking.startDate).toLocaleDateString()} → {new Date(booking.endDate).toLocaleDateString()} &nbsp;•&nbsp; 💰 €{booking.totalPrice?.toFixed(2) || 'N/A'}
+                                </div>
+                              </div>
+
+                              <div style={{display:'flex', gap:'8px', alignItems:'center', justifyContent:'flex-end', flexWrap:'wrap'}}>
+                                {ui.primaryChip && <StatusPill label={ui.primaryChip.label} tone={ui.primaryChip.tone} />}
+                                <Link to={`/item/${booking.itemId}`} className="btn btn-outline" style={{fontSize: '0.85rem', padding: '6px 10px'}}>
+                                  View item
+                                </Link>
+                                {ui.showPay && (
+                                  <button
+                                    className="btn btn-primary"
+                                    style={{fontSize:'0.85rem', padding:'6px 10px'}}
+                                    onClick={() => startPayment(booking.id).catch(e => alert(e.message))}
+                                  >
+                                    Pay now
+                                  </button>
                                 )}
                               </div>
-                              <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
-                                <div style={{fontWeight: 600, fontSize: '1.05rem', lineHeight:1.2}}>{item ? item.name : `Item #${booking.itemId}`}</div>
-                                <div style={{color: '#666', fontSize: '0.9rem'}}>
-                                  📅 {new Date(booking.startDate).toLocaleDateString()} → {new Date(booking.endDate).toLocaleDateString()}
-                                </div>
-                                <div style={{color: '#666', fontSize: '0.9rem'}}>
-                                  💰 €{booking.totalPrice?.toFixed(2) || 'N/A'}
-                                </div>
-                                <div style={{display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap', marginTop:'4px'}}>
-                                  {booking.status !== 'APPROVED' && renderStatus(booking.status)}
-                                  {booking.status === 'APPROVED' && (
-                                    <Link to={`/item/${booking.itemId}`} className="btn btn-outline" style={{fontSize: '0.85rem', padding: '4px 10px'}}>View item</Link>
-                                  )}
-                                </div>
+                            </div>
+
+                            <div style={{
+                              background:'#f9f9f9',
+                              border:'1px solid #eee',
+                              borderRadius:'10px',
+                              padding:'12px'
+                            }}>
+                              <div style={{fontWeight:800, marginBottom:'6px'}}>{ui.headline}</div>
+                              <div style={{color:'#555', fontSize:'0.92rem', lineHeight:1.35}}>
+                                {String(ui.helper || '').split('\n').map((line, idx) => (
+                                  <div key={idx}>{line}</div>
+                                ))}
+                                {ui.payUntilText ? <span style={{display:'block', marginTop:'6px', color:'#666'}}>{ui.payUntilText}</span> : null}
                               </div>
                             </div>
-                            {canReviewBooking(booking) && (
-                              <div style={{marginTop:'12px', width:'100%', borderTop:'1px solid #eee', paddingTop:'12px'}}>
-                                <div style={{fontWeight:600, marginBottom:'10px', fontSize:'1rem'}}>Leave a review</div>
-                                <div style={{display:'grid', gridTemplateColumns:'1fr', gap:'12px'}}>
+
+                            {canReview ? (
+                              <div style={{borderTop:'1px solid #eee', paddingTop:'12px'}}>
+                                <div style={{fontWeight:800, marginBottom:'10px'}}>Reviews</div>
+                                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px'}}>
                                   <div style={{border:'1px solid #e6e6e6', borderRadius:'10px', padding:'12px', background:'#fafafa'}}>
-                                    <div style={{fontWeight:600, marginBottom:'6px'}}>Item rating</div>
+                                    <div style={{fontWeight:700, marginBottom:'6px'}}>Item rating</div>
                                     {hasReview(booking.id, 'ITEM', booking.itemId) ? (
                                       <>
                                         <StarRating value={getUserReview(booking.id, 'ITEM', booking.itemId)?.rating || 0} disabled size={24} />
@@ -466,11 +704,11 @@ export default function Bookings() {
                                     ) : (
                                       <>
                                         <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'8px'}}>
-                                        <StarRating
-                                          value={Number(getDraft(booking.id, 'item').rating)}
-                                          onChange={(n) => setDraft(booking.id, 'item', 'rating', n)}
-                                          size={26}
-                                        />
+                                          <StarRating
+                                            value={Number(getDraft(booking.id, 'item').rating)}
+                                            onChange={(n) => setDraft(booking.id, 'item', 'rating', n)}
+                                            size={26}
+                                          />
                                         </div>
                                         <textarea
                                           className="form-input"
@@ -500,8 +738,9 @@ export default function Bookings() {
                                       </>
                                     )}
                                   </div>
+
                                   <div style={{border:'1px solid #e6e6e6', borderRadius:'10px', padding:'12px', background:'#fafafa'}}>
-                                    <div style={{fontWeight:600, marginBottom:'6px'}}>Owner rating</div>
+                                    <div style={{fontWeight:700, marginBottom:'6px'}}>Owner rating</div>
                                     {hasReview(booking.id, 'USER', item?.owner?.id) ? (
                                       <>
                                         <StarRating value={getUserReview(booking.id, 'USER', item?.owner?.id)?.rating || 0} disabled size={24} />
@@ -530,7 +769,7 @@ export default function Bookings() {
                                         <button
                                           className="btn btn-primary"
                                           style={{
-                                            marginTop:'6px',
+                                            marginTop:'8px',
                                             opacity: (!item || !item.owner || !getDraft(booking.id, 'owner').rating) ? 0.5 : 1,
                                             cursor: (!item || !item.owner || !getDraft(booking.id, 'owner').rating) ? 'not-allowed' : 'pointer'
                                           }}
@@ -552,10 +791,51 @@ export default function Bookings() {
                                   </div>
                                 </div>
                               </div>
+                            ) : (
+                              <div style={{color:'#777', fontSize:'0.9rem'}}>
+                                {ui.isPaid ? 'Reviews unlock after the rental ends.' : 'Reviews unlock after payment and after the rental ends.'}
+                              </div>
                             )}
+                          </div>
                         </div>
                       );
-                    })}
+                    };
+
+                    return (
+                      <div style={{display:'flex', flexDirection:'column', gap:'18px'}}>
+                        {order.map(section => {
+                          const list = groups[section.key] || [];
+                          if (list.length === 0) return null;
+                          const isCancelledSection = section.key === 'cancelled';
+                          const isHidden = isCancelledSection && !showCancelledRentals;
+                          return (
+                            <div key={section.key} style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+                              <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
+                                <div style={{fontWeight:900, fontSize:'1.05rem'}}>{section.title}</div>
+                                <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                                  <div style={{color:'#777', fontSize:'0.9rem'}}>{list.length}</div>
+                                  {isCancelledSection && (
+                                    <button
+                                      className="btn btn-outline"
+                                      style={{fontSize:'0.85rem', padding:'4px 10px'}}
+                                      onClick={() => setShowCancelledRentals(v => !v)}
+                                    >
+                                      {showCancelledRentals ? 'Hide' : 'Show'}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              {!isHidden && (
+                                <div style={{display:'flex', flexDirection:'column', gap:'14px'}}>
+                                  {list.map(({ booking, ui }) => renderBookingCard(booking, ui))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
             )}
         </div>
@@ -564,7 +844,7 @@ export default function Bookings() {
       {/* Requests Tab */}
       {activeTab === 'requests' && (
         <div>
-             {requests.length === 0 ? (
+             {requests.filter(r => r.status === 'PENDING').length === 0 ? (
                <div style={{textAlign: 'center', padding: '60px 20px', color: '#999'}}>
                  <div style={{fontSize: '3rem', marginBottom: '12px'}}>📭</div>
                  <h3>No booking requests</h3>
@@ -572,23 +852,20 @@ export default function Bookings() {
                </div>
              ) : (
                 <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
-                    {requests.map(request => {
+                    {requests.filter(r => r.status === 'PENDING').map(request => {
                       const item = itemsMap[request.itemId];
+                      const ui = getRentalUi(request, 'owner');
                       return (
                         <div
                           key={request.id}
                           className="sidebar-card"
                           style={{
-                            position:'relative',
                             display: 'grid',
-                            gridTemplateColumns: '240px 1fr',
+                            gridTemplateColumns: '220px 1fr',
                             gap: '16px',
                             alignItems: 'flex-start'
                           }}
                         >
-                             {request.status === 'APPROVED' && (
-                              <span style={{position:'absolute', top:'10px', right:'10px', color:'#2ecc71', fontWeight:700}}>✓ APPROVED</span>
-                            )}
                              <div style={{display:'flex', flexDirection:'column', gap:'10px', minWidth:'200px'}}>
                               <div style={{width: '100%', aspectRatio: '1 / 1', borderRadius: '8px', overflow: 'hidden', background: '#eee'}}>
                                 {item && item.imageUrl ? (
@@ -599,93 +876,108 @@ export default function Bookings() {
                                   </div>
                                 )}
                               </div>
-                              <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
-                                <div style={{fontWeight: 600, fontSize: '1.05rem', lineHeight:1.2}}>{item ? item.name : `Item #${request.itemId}`}</div>
-                                <div style={{color: '#666', fontSize: '0.9rem'}}>
-                                  👤 Renter ID: {request.userId}
-                                </div>
-                                <div style={{color: '#666', fontSize: '0.9rem'}}>
-                                  📅 {new Date(request.startDate).toLocaleDateString()} → {new Date(request.endDate).toLocaleDateString()}
-                                </div>
-                                <div style={{color: 'var(--primary)', fontWeight: 600, fontSize: '0.95rem', marginTop: '4px'}}>
-                                  💰 €{request.totalPrice?.toFixed(2) || 'N/A'}
-                                </div>
-                                <div style={{display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap', marginTop:'4px'}}>
-                                  {request.status === 'PENDING' ? (
-                                    <div style={{display: 'flex', gap: '8px'}}>
-                                        <button 
-                                          className="btn btn-primary" 
-                                          style={{padding: '6px 12px', fontSize: '0.85rem', flex: 1}} 
-                                          onClick={() => handleStatusUpdate(request.id, 'APPROVED')}
-                                        >
-                                          ✓ Accept
-                                        </button>
-                                        <button 
-                                          className="btn btn-danger" 
-                                          style={{padding: '6px 12px', fontSize: '0.85rem', flex: 1}} 
-                                          onClick={() => handleStatusUpdate(request.id, 'REJECTED')}
-                                        >
-                                          ✕ Decline
-                                        </button>
-                                    </div>
-                                  ) : (
-                                    request.status !== 'APPROVED' && <div>{renderStatus(request.status)}</div>
-                                  )}
-                                </div>
-                              </div>
                             </div>
-                            {canReviewBooking(request) && (
-                              <div style={{marginTop:'12px', width:'100%', borderTop:'1px solid #eee', paddingTop:'12px'}}>
-                                <div style={{fontWeight:600, marginBottom:'10px', fontSize:'1rem'}}>Review renter</div>
-                                <div style={{border:'1px solid #e6e6e6', borderRadius:'10px', padding:'12px', background:'#fafafa'}}>
-                                  {hasReview(request.id, 'USER', request.userId) ? (
-                                    <>
-                                      <StarRating value={getUserReview(request.id, 'USER', request.userId)?.rating || 0} disabled size={24} />
-                                      <div style={{marginTop:'6px', color:'#333', lineHeight:1.4}}>
-                                        {getUserReview(request.id, 'USER', request.userId)?.comment || 'No comment provided.'}
-                                      </div>
-                                      <div style={{marginTop:'6px', color:'#155724', fontSize:'0.9rem'}}>Already submitted</div>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'8px'}}>
-                                        <span style={{fontWeight:600}}>Rating</span>
-                                        <StarRating
-                                          value={Number(getDraft(request.id, 'renter').rating)}
-                                          onChange={(n) => setDraft(request.id, 'renter', 'rating', n)}
-                                          size={26}
-                                        />
-                                      </div>
-                                      <textarea
-                                        className="form-input"
-                                        rows={3}
-                                        placeholder="How was the renter?"
-                                        value={getDraft(request.id, 'renter').comment}
-                                        onChange={e => setDraft(request.id, 'renter', 'comment', e.target.value)}
-                                        style={{width:'100%'}}
-                                      />
-                                      <button
-                                        className="btn btn-primary"
-                                        style={{
-                                          marginTop:'8px',
-                                          opacity: getDraft(request.id, 'renter').rating ? 1 : 0.5,
-                                          cursor: getDraft(request.id, 'renter').rating ? 'pointer' : 'not-allowed'
-                                        }}
-                                        disabled={!getDraft(request.id, 'renter').rating}
-                                        onClick={() => submitReview({ bookingId: request.id, targetType: 'USER', targetId: request.userId }, 'renter')}
-                                      >
-                                        Submit
-                                      </button>
-                                      {getMsg(request.id, 'renter') && (
-                                        <div style={{marginTop:'4px', color:getMsg(request.id, 'renter').startsWith('✓') ? '#155724' : '#721c24', fontSize:'0.9rem'}}>
-                                          {getMsg(request.id, 'renter')}
-                                        </div>
-                                      )}
-                                    </>
-                                  )}
+
+                            <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+                              <div style={{display:'flex', justifyContent:'space-between', gap:'12px', flexWrap:'wrap'}}>
+                                <div style={{minWidth: '240px'}}>
+                                  <div style={{fontWeight: 800, fontSize: '1.05rem', lineHeight:1.2}}>
+                                    {item ? item.name : `Item #${request.itemId}`}
+                                  </div>
+                                  <div style={{color: '#666', fontSize: '0.9rem', marginTop:'6px'}}>
+                                    👤 Renter ID: {request.userId} &nbsp;•&nbsp; 📅 {new Date(request.startDate).toLocaleDateString()} → {new Date(request.endDate).toLocaleDateString()} &nbsp;•&nbsp; 💰 €{request.totalPrice?.toFixed(2) || 'N/A'}
+                                  </div>
+                                </div>
+
+                                <div style={{display:'flex', gap:'8px', alignItems:'center', justifyContent:'flex-end', flexWrap:'wrap'}}>
+                                  {ui.primaryChip && <StatusPill label={ui.primaryChip.label} tone={ui.primaryChip.tone} />}
                                 </div>
                               </div>
-                            )}
+
+                              <div style={{
+                                background:'#f9f9f9',
+                                border:'1px solid #eee',
+                                borderRadius:'10px',
+                                padding:'12px'
+                              }}>
+                                <div style={{fontWeight:800, marginBottom:'6px'}}>
+                                  {ui.headline}
+                                </div>
+                                <div style={{color:'#555', fontSize:'0.92rem', lineHeight:1.35}}>
+                                  {ui.helper}
+                                </div>
+                              </div>
+
+                              <div style={{display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap'}}>
+                                <button
+                                  className="btn btn-primary"
+                                  style={{padding: '8px 12px', fontSize: '0.9rem'}}
+                                  onClick={() => handleStatusUpdate(request.id, 'APPROVED')}
+                                >
+                                  ✓ Approve
+                                </button>
+                                <button
+                                  className="btn btn-danger"
+                                  style={{padding: '8px 12px', fontSize: '0.9rem'}}
+                                  onClick={() => handleStatusUpdate(request.id, 'REJECTED')}
+                                >
+                                  ✕ Reject
+                                </button>
+                              </div>
+
+                              {canReviewBooking(request) && (request.paymentStatus || 'UNPAID') === 'PAID' && (
+                                <div style={{borderTop:'1px solid #eee', paddingTop:'12px'}}>
+                                  <div style={{fontWeight:800, marginBottom:'10px'}}>Review renter</div>
+                                  <div style={{border:'1px solid #e6e6e6', borderRadius:'10px', padding:'12px', background:'#fafafa'}}>
+                                    {hasReview(request.id, 'USER', request.userId) ? (
+                                      <>
+                                        <StarRating value={getUserReview(request.id, 'USER', request.userId)?.rating || 0} disabled size={24} />
+                                        <div style={{marginTop:'6px', color:'#333', lineHeight:1.4}}>
+                                          {getUserReview(request.id, 'USER', request.userId)?.comment || 'No comment provided.'}
+                                        </div>
+                                        <div style={{marginTop:'6px', color:'#155724', fontSize:'0.9rem'}}>Already submitted</div>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <div style={{display:'flex', alignItems:'center', gap:'8px', marginBottom:'8px'}}>
+                                          <span style={{fontWeight:700}}>Rating</span>
+                                          <StarRating
+                                            value={Number(getDraft(request.id, 'renter').rating)}
+                                            onChange={(n) => setDraft(request.id, 'renter', 'rating', n)}
+                                            size={26}
+                                          />
+                                        </div>
+                                        <textarea
+                                          className="form-input"
+                                          rows={3}
+                                          placeholder="How was the renter?"
+                                          value={getDraft(request.id, 'renter').comment}
+                                          onChange={e => setDraft(request.id, 'renter', 'comment', e.target.value)}
+                                          style={{width:'100%'}}
+                                        />
+                                        <button
+                                          className="btn btn-primary"
+                                          style={{
+                                            marginTop:'8px',
+                                            opacity: getDraft(request.id, 'renter').rating ? 1 : 0.5,
+                                            cursor: getDraft(request.id, 'renter').rating ? 'pointer' : 'not-allowed'
+                                          }}
+                                          disabled={!getDraft(request.id, 'renter').rating}
+                                          onClick={() => submitReview({ bookingId: request.id, targetType: 'USER', targetId: request.userId }, 'renter')}
+                                        >
+                                          Submit
+                                        </button>
+                                        {getMsg(request.id, 'renter') && (
+                                          <div style={{marginTop:'4px', color:getMsg(request.id, 'renter').startsWith('✓') ? '#155724' : '#721c24', fontSize:'0.9rem'}}>
+                                            {getMsg(request.id, 'renter')}
+                                          </div>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                         </div>
                       );
                     })}
@@ -693,6 +985,132 @@ export default function Bookings() {
              )}
         </div>
       )}
+
+      {/* Owner Bookings Tab (everything except pending requests) */}
+      {activeTab === 'owner-bookings' && (
+        <div>
+          {requests.filter(r => r.status !== 'PENDING').length === 0 ? (
+            <div style={{textAlign: 'center', padding: '60px 20px', color: '#999'}}>
+              <div style={{fontSize: '3rem', marginBottom: '12px'}}>📅</div>
+              <h3>No bookings yet</h3>
+              <p>Approved bookings for your items will appear here</p>
+            </div>
+          ) : (
+            <div style={{display:'flex', flexDirection:'column', gap:'18px'}}>
+              {(() => {
+                const ownerBookings = requests.filter(r => r.status !== 'PENDING');
+                const groups = {
+                  active: [],
+                  upcoming: [],
+                  awaiting_payment: [],
+                  past: [],
+                  cancelled: [],
+                  other: []
+                };
+                ownerBookings.forEach(b => {
+                  const ui = getRentalUi(b, 'owner');
+                  (groups[ui.group] || groups.other).push({ booking: b, ui });
+                });
+                const order = [
+                  { key: 'active', title: '🟢 Active rentals' },
+                  { key: 'upcoming', title: '🗓️ Upcoming rentals' },
+                  { key: 'awaiting_payment', title: '💳 Awaiting renter payment' },
+                  { key: 'past', title: '🏁 Past rentals' },
+                  { key: 'cancelled', title: '🧾 Cancelled / rejected' }
+                ];
+
+                const renderOwnerBooking = (booking, ui) => {
+                  const item = itemsMap[booking.itemId];
+                  const paymentDueAt = booking.paymentDueAt ? new Date(booking.paymentDueAt) : null;
+                  const showDue = booking.status === 'APPROVED' && (booking.paymentStatus || 'UNPAID') !== 'PAID' && paymentDueAt;
+                  return (
+                    <div
+                      key={booking.id}
+                      className="sidebar-card"
+                      style={{display:'grid', gridTemplateColumns:'220px 1fr', gap:'16px', alignItems:'flex-start'}}
+                    >
+                      <div style={{display:'flex', flexDirection:'column', gap:'10px', minWidth:'200px'}}>
+                        <div style={{width:'100%', aspectRatio:'1 / 1', borderRadius:'8px', overflow:'hidden', background:'#eee'}}>
+                          {item && item.imageUrl ? (
+                            <img src={item.imageUrl} alt={item?.name} style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                          ) : (
+                            <div style={{width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'#ccc'}}>Loading...</div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+                        <div style={{display:'flex', justifyContent:'space-between', gap:'12px', flexWrap:'wrap'}}>
+                          <div style={{minWidth:'240px'}}>
+                            <div style={{fontWeight:800, fontSize:'1.05rem', lineHeight:1.2}}>
+                              {item ? item.name : `Item #${booking.itemId}`}
+                            </div>
+                            <div style={{color:'#666', fontSize:'0.9rem', marginTop:'6px'}}>
+                              👤 Renter ID: {booking.userId} &nbsp;•&nbsp; 📅 {new Date(booking.startDate).toLocaleDateString()} → {new Date(booking.endDate).toLocaleDateString()} &nbsp;•&nbsp; 💰 €{booking.totalPrice?.toFixed(2) || 'N/A'}
+                            </div>
+                          </div>
+
+                          <div style={{display:'flex', gap:'8px', alignItems:'center', justifyContent:'flex-end', flexWrap:'wrap'}}>
+                            {ui.primaryChip && <StatusPill label={ui.primaryChip.label} tone={ui.primaryChip.tone} />}
+                          </div>
+                        </div>
+
+                        <div style={{background:'#f9f9f9', border:'1px solid #eee', borderRadius:'10px', padding:'12px'}}>
+                          <div style={{fontWeight:800, marginBottom:'6px'}}>{ui.headline}</div>
+                          <div style={{color:'#555', fontSize:'0.92rem', lineHeight:1.35}}>
+                            {ui.helper}
+                            {showDue ? (
+                              <span style={{display:'block', marginTop:'6px', color:'#666'}}>
+                                Renter must pay until {paymentDueAt.toLocaleString()}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                };
+
+                return (
+                  <div style={{display:'flex', flexDirection:'column', gap:'18px'}}>
+                    {order.map(section => {
+                      const list = groups[section.key] || [];
+                      if (list.length === 0) return null;
+                      const isCancelledSection = section.key === 'cancelled';
+                      const isHidden = isCancelledSection && !showCancelledOwnerBookings;
+                      return (
+                        <div key={section.key} style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+                          <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
+                            <div style={{fontWeight:900, fontSize:'1.05rem'}}>{section.title}</div>
+                            <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                              <div style={{color:'#777', fontSize:'0.9rem'}}>{list.length}</div>
+                              {isCancelledSection && (
+                                <button
+                                  className="btn btn-outline"
+                                  style={{fontSize:'0.85rem', padding:'4px 10px'}}
+                                  onClick={() => setShowCancelledOwnerBookings(v => !v)}
+                                >
+                                  {showCancelledOwnerBookings ? 'Hide' : 'Show'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {!isHidden && (
+                            <div style={{display:'flex', flexDirection:'column', gap:'14px'}}>
+                              {list.map(({ booking, ui }) => renderOwnerBooking(booking, ui))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
   );
 }

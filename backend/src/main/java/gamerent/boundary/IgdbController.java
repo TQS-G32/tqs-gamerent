@@ -5,7 +5,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/igdb")
-@CrossOrigin(origins = "*")
 public class IgdbController {
     private final IgdbService igdbService;
 

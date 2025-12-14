@@ -5,8 +5,11 @@ import gamerent.data.BookingRepository;
 import gamerent.data.BookingStatus;
 import gamerent.data.Item;
 import gamerent.data.ItemRepository;
+import gamerent.data.PaymentStatus;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -103,25 +106,70 @@ public class BookingService {
             throw new RuntimeException("Unauthorized: You are not the owner of this item");
         }
         
+        // If transitioning to APPROVED for the first time, store approval + payment deadline
+        if (status == BookingStatus.APPROVED && booking.getStatus() != BookingStatus.APPROVED) {
+            LocalDateTime approvedAt = LocalDateTime.now();
+            booking.setApprovedAt(approvedAt);
+            booking.setPaymentDueAt(computePaymentDueAt(approvedAt));
+        }
+
         booking.setStatus(status);
         return bookingRepository.save(booking);
     }
+
+    /**
+     * Payment window: until end of approval day, except if approval happens too close to midnight
+     * (less than 60 minutes remaining), then extend to end of next day.
+     */
+    private LocalDateTime computePaymentDueAt(LocalDateTime approvedAt) {
+        LocalDateTime endOfToday = approvedAt.toLocalDate().atTime(LocalTime.MAX);
+        long minutesRemaining = java.time.Duration.between(approvedAt, endOfToday).toMinutes();
+        if (minutesRemaining < 60) {
+            return approvedAt.toLocalDate().plusDays(1).atTime(LocalTime.MAX);
+        }
+        return endOfToday;
+    }
     
     public List<BookingRequest> getUserBookings(Long userId) {
-        return bookingRepository.findByUserId(userId);
+        List<BookingRequest> list = bookingRepository.findByUserId(userId);
+        expireUnpaidApprovedBookings(list);
+        return list;
     }
     
     public List<BookingRequest> getItemBookings(Long itemId) {
-        return bookingRepository.findByItemId(itemId);
+        List<BookingRequest> list = bookingRepository.findByItemId(itemId);
+        expireUnpaidApprovedBookings(list);
+        return list;
     }
     
     // Get all bookings for items owned by ownerId
     public List<BookingRequest> getOwnerBookings(Long ownerId) {
         List<Item> ownerItems = itemRepository.findByOwnerId(ownerId);
         
-        return ownerItems.stream()
+        List<BookingRequest> list = ownerItems.stream()
             .flatMap(item -> bookingRepository.findByItemId(item.getId()).stream())
             .toList();
+        expireUnpaidApprovedBookings(list);
+        return list;
+    }
+
+    /**
+     * Auto-expire payment windows on read: if an APPROVED booking is still UNPAID and paymentDueAt is in the past,
+     * flip it to CANCELLED so it doesn't linger forever.
+     */
+    private void expireUnpaidApprovedBookings(List<BookingRequest> bookings) {
+        if (bookings == null || bookings.isEmpty()) return;
+        LocalDateTime now = LocalDateTime.now();
+        for (BookingRequest b : bookings) {
+            if (b == null) continue;
+            if (b.getStatus() != BookingStatus.APPROVED) continue;
+            if (b.getPaymentStatus() == PaymentStatus.PAID) continue;
+            LocalDateTime dueAt = b.getPaymentDueAt();
+            if (dueAt != null && now.isAfter(dueAt)) {
+                b.setStatus(BookingStatus.CANCELLED);
+                bookingRepository.save(b);
+            }
+        }
     }
 
     private boolean isOverlapping(LocalDate start1, LocalDate end1, LocalDate start2, LocalDate end2) {

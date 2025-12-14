@@ -12,7 +12,6 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/bookings")
-@CrossOrigin(origins = "*")
 public class BookingController {
     private static final String USER_ID_KEY = "userId";
     private final BookingService bookingService;
