@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Route, BrowserRouter as Router, Routes, useNavigate } from "react-router-dom";
+import AdminDashboard from "./pages/AdminDashboard.jsx";
 import AuthPage from "./pages/AuthPage.jsx";
 import Bookings from "./pages/Bookings.jsx";
 import Home from "./pages/Home.jsx";
@@ -36,6 +37,9 @@ function NavBar({ user }) {
             <Link to="/post-item" className="btn btn-primary">Rent your gear</Link>
             {currentUser ? (
               <>
+                {currentUser.role === 'ADMIN' && (
+                  <Link to="/admin" className="nav-link" style={{fontWeight: 600}}>📊 Dashboard</Link>
+                )}
                 <span style={{marginLeft: '12px'}}>Hi, {currentUser.name}</span>
                 <button className="btn btn-ghost" style={{marginLeft: '12px'}} onClick={async () => {
                   try {
@@ -103,6 +107,7 @@ export default function App() {
         <Route path="/member/:id" element={<UserProfile />} />
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/auth" element={<AuthPage onAuth={handleAuth} />} />
+        <Route path="/admin" element={user && user.role === 'ADMIN' ? <AdminDashboard /> : <div style={{padding:'2rem',color:'red'}}>Access denied</div>} />
       </Routes>
     </Router>
   );

@@ -8,11 +8,15 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/bookings")
+@CrossOrigin(origins = "*")
 public class BookingController {
+    private static final Logger logger = Logger.getLogger(BookingController.class.getName());
     private static final String USER_ID_KEY = "userId";
     private final BookingService bookingService;
 
@@ -29,9 +33,16 @@ public class BookingController {
         else if (uid instanceof Integer intValue) userId = intValue.longValue();
         if (userId == null) userId = booking.getUserId();
 
+        logger.log(Level.INFO, "Booking creation attempt - User: {0}, Item: {1}, Dates: {2} to {3}", 
+            new Object[]{userId, booking.getItemId(), booking.getStartDate(), booking.getEndDate()});
         try {
-            return bookingService.createBooking(booking.getItemId(), userId, booking.getStartDate(), booking.getEndDate());
+            BookingRequest created = bookingService.createBooking(booking.getItemId(), userId, booking.getStartDate(), booking.getEndDate());
+            logger.log(Level.INFO, "Booking created successfully - ID: {0}, Total Price: {1}", 
+                new Object[]{created.getId(), created.getTotalPrice()});
+            return created;
         } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "Booking creation failed - User: {0}, Item: {1}, Error: {2}", 
+                new Object[]{userId, booking.getItemId(), e.getMessage()});
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
     }
@@ -72,9 +83,16 @@ public class BookingController {
         if (uid instanceof Long longValue) resolvedOwnerId = longValue;
         else if (uid instanceof Integer intValue) resolvedOwnerId = intValue.longValue();
         if (resolvedOwnerId == null) resolvedOwnerId = 1L;
+        logger.log(Level.INFO, "Booking status update attempt - Booking ID: {0}, New Status: {1}, Owner: {2}", 
+            new Object[]{id, status, resolvedOwnerId});
         try {
-            return bookingService.updateStatus(id, status, resolvedOwnerId);
+            BookingRequest updated = bookingService.updateStatus(id, status, resolvedOwnerId);
+            logger.log(Level.INFO, "Booking status updated successfully - ID: {0}, Status: {1}", 
+                new Object[]{id, status});
+            return updated;
         } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "Booking status update failed - ID: {0}, Error: {1}", 
+                new Object[]{id, e.getMessage()});
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }
     }

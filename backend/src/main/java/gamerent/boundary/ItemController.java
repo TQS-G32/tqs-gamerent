@@ -8,12 +8,16 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/items")
+@CrossOrigin(origins = "*")
 public class ItemController {
+    private static final Logger logger = Logger.getLogger(ItemController.class.getName());
     private final ItemService itemService;
     private final UserRepository userRepository;
     private static final int DEFAULT_PAGE_SIZE = 10;

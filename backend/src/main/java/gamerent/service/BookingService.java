@@ -12,9 +12,12 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Service
 public class BookingService {
+    private static final Logger logger = Logger.getLogger(BookingService.class.getName());
     
     private final BookingRepository bookingRepository;
     private final ItemRepository itemRepository;
@@ -25,8 +28,14 @@ public class BookingService {
     }
 
     public BookingRequest createBooking(Long itemId, Long userId, LocalDate start, LocalDate end) {
+        logger.log(Level.INFO, "Creating booking - Item: {0}, User: {1}, Period: {2} to {3}", 
+            new Object[]{itemId, userId, start, end});
+        
         Item item = itemRepository.findById(itemId)
-            .orElseThrow(() -> new RuntimeException("Item not found"));
+            .orElseThrow(() -> {
+                logger.log(Level.WARNING, "Booking creation failed - Item not found: {0}", itemId);
+                return new RuntimeException("Item not found");
+            });
 
         validateOwnership(item, userId);
         validateItemAvailability(item);
@@ -34,17 +43,23 @@ public class BookingService {
         validateDateRange(start, end, itemId);
         validateMinimalRentalPeriod(start, end, item);
 
-        return createAndSaveBooking(itemId, userId, start, end, item);
+        BookingRequest created = createAndSaveBooking(itemId, userId, start, end, item);
+        logger.log(Level.INFO, "Booking created successfully - ID: {0}, Price: ${1}", 
+            new Object[]{created.getId(), created.getTotalPrice()});
+        return created;
     }
 
     private void validateOwnership(Item item, Long userId) {
         if (item.getOwner().getId().equals(userId)) {
+            logger.log(Level.WARNING, "User {0} attempted to rent their own item {1}", 
+                new Object[]{userId, item.getId()});
             throw new RuntimeException("You cannot rent your own item");
         }
     }
 
     private void validateItemAvailability(Item item) {
         if (item.getAvailable() == null || !item.getAvailable()) {
+            logger.log(Level.WARNING, "Booking attempt on unavailable item: {0}", item.getId());
             throw new RuntimeException("Item is currently not available for rent");
         }
     }
@@ -96,8 +111,14 @@ public class BookingService {
     }
     
     public BookingRequest updateStatus(Long bookingId, BookingStatus status, Long ownerId) {
+        logger.log(Level.INFO, "Updating booking status - Booking: {0}, Status: {1}, Owner: {2}", 
+            new Object[]{bookingId, status, ownerId});
+        
         BookingRequest booking = bookingRepository.findById(bookingId)
-            .orElseThrow(() -> new RuntimeException("Booking not found"));
+            .orElseThrow(() -> {
+                logger.log(Level.WARNING, "Status update failed - Booking not found: {0}", bookingId);
+                return new RuntimeException("Booking not found");
+            });
             
         Item item = itemRepository.findById(booking.getItemId())
             .orElseThrow(() -> new RuntimeException("Item not found"));
