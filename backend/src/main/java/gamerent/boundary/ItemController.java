@@ -13,7 +13,6 @@ import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/items")
-@CrossOrigin(origins = "*")
 public class ItemController {
     private final ItemService itemService;
     private final UserRepository userRepository;

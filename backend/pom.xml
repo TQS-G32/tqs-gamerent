@@ -184,6 +184,13 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- Mockito static mocking (used to test StripeGatewayImpl without real Stripe calls) -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-inline</artifactId>
+            <version>5.2.0</version>
+            <scope>test</scope>
+        </dependency>
         <!-- Stripe SDK (test-mode payments) -->
         <dependency>
             <groupId>com.stripe</groupId>
