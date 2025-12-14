@@ -50,6 +50,10 @@ services:
 networks:
   gamerent-network:
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.5.0.0/16  # Safe range (10.x.x.x) approved by UA IT
 
 volumes:
   db_data:
