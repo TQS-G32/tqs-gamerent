@@ -33,8 +33,7 @@ public class BookingController {
         else if (uid instanceof Integer intValue) userId = intValue.longValue();
         if (userId == null) userId = booking.getUserId();
 
-        logger.log(Level.INFO, "Booking creation attempt - User: {0}, Item: {1}, Dates: {2} to {3}", 
-            new Object[]{userId, booking.getItemId(), booking.getStartDate(), booking.getEndDate()});
+        logger.log(Level.INFO, "Booking creation attempt for item ID: {0}", booking.getItemId());
         try {
             BookingRequest created = bookingService.createBooking(booking.getItemId(), userId, booking.getStartDate(), booking.getEndDate());
             logger.log(Level.INFO, "Booking created successfully - ID: {0}, Total Price: {1}", 

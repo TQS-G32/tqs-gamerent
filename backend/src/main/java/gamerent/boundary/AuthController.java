@@ -40,14 +40,14 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<Object> register(@RequestBody User user) {
-        logger.log(Level.INFO, "Registration attempt for email: {0}", user.getEmail());
+        logger.log(Level.INFO, "Registration attempt received");
         if (userService.findByEmail(user.getEmail()).isPresent()) {
-            logger.log(Level.WARNING, "Registration failed - email already in use: {0}", user.getEmail());
+            logger.log(Level.WARNING, "Registration failed - email already in use");
             return ResponseEntity.badRequest().body("Email already in use");
         }
         user.setRole("USER");
         User saved = userService.registerUser(user);
-        logger.log(Level.INFO, "User registered successfully: {0} (ID: {1})", new Object[]{saved.getEmail(), saved.getId()});
+        logger.log(Level.INFO, "User registered successfully with ID: {0}", saved.getId());
 
         // Build response without password
         Map<String, Object> response = new HashMap<>();
@@ -63,14 +63,14 @@ public class AuthController {
     public ResponseEntity<Object> login(@RequestBody Map<String, String> loginData, HttpServletRequest request) {
         String email = loginData.get(EMAIL_KEY);
         String password = loginData.get("password");
-        logger.log(Level.INFO, "Login attempt for email: {0}", email);
+        logger.log(Level.INFO, "Login attempt received");
         Optional<User> userOpt = userService.findByEmail(email);
         if (userOpt.isEmpty() || !userService.checkPassword(userOpt.get(), password)) {
-            logger.log(Level.WARNING, "Login failed for email: {0} - Invalid credentials", email);
+            logger.log(Level.WARNING, "Login failed - Invalid credentials");
             return ResponseEntity.status(401).body("Invalid credentials");
         }
         User user = userOpt.get();
-        logger.log(Level.INFO, "User logged in successfully: {0} (ID: {1}, Role: {2})", new Object[]{user.getEmail(), user.getId(), user.getRole()});
+        logger.log(Level.INFO, "User logged in successfully (ID: {0}, Role: {1})", new Object[]{user.getId(), user.getRole()});
         // Create an authenticated session so subsequent requests are authorized
         SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + (user.getRole() != null ? user.getRole() : "USER"));
         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(user.getEmail(), null, java.util.List.of(authority));

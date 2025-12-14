@@ -151,20 +151,21 @@ public class DisputeService {
         
         List<BookingRequest> ownerBookings = itemRepository.findByOwnerId(userId).stream()
             .flatMap(item -> bookingRepository.findByItemId(item.getId()).stream())
-            .collect(Collectors.toList());
+            .toList();
         
         List<Long> allBookingIds = userBookings.stream()
             .map(BookingRequest::getId)
-            .collect(Collectors.toList());
+            .toList();
         
-        allBookingIds.addAll(ownerBookings.stream()
+        List<Long> mutableBookingIds = new java.util.ArrayList<>(allBookingIds);
+        mutableBookingIds.addAll(ownerBookings.stream()
             .map(BookingRequest::getId)
-            .collect(Collectors.toList()));
+            .toList());
         
         // Get disputes where user is reporter or involved in booking
         return disputeRepository.findAll().stream()
-            .filter(d -> d.getReporterId().equals(userId) || allBookingIds.contains(d.getBookingId()))
-            .collect(Collectors.toList());
+            .filter(d -> d.getReporterId().equals(userId) || mutableBookingIds.contains(d.getBookingId()))
+            .toList();
     }
 
     public Dispute getDisputeById(Long disputeId, Long userId, String userRole) {

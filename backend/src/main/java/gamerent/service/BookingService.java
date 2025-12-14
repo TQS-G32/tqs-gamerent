@@ -31,8 +31,7 @@ public class BookingService {
     }
 
     public BookingRequest createBooking(Long itemId, Long userId, LocalDate start, LocalDate end) {
-        logger.log(Level.INFO, "Creating booking - Item: {0}, User: {1}, Period: {2} to {3}", 
-            new Object[]{itemId, userId, start, end});
+        logger.log(Level.INFO, "Creating booking for item ID: {0}", itemId);
         
         Item item = itemRepository.findById(itemId)
             .orElseThrow(() -> {

@@ -9,21 +9,17 @@ import gamerent.data.DisputeRepository;
 import gamerent.data.BookingRequest;
 import gamerent.data.BookingStatus;
 import gamerent.data.PaymentStatus;
-import gamerent.data.User;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.prepost.PreAuthorize;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")

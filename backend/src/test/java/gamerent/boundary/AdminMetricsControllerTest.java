@@ -2,9 +2,7 @@ package gamerent.boundary;
 
 import app.getxray.xray.junit.customjunitxml.annotations.Requirement;
 import app.getxray.xray.junit.customjunitxml.annotations.XrayTest;
-import gamerent.boundary.dto.AdminMetricsResponse;
 import gamerent.data.*;
-import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -118,8 +116,6 @@ class AdminMetricsControllerTest {
     @Tag("unit")
     void getMetrics_ShouldCalculateMonthlyRevenueCorrectly() throws Exception {
         // Given
-        YearMonth currentMonth = YearMonth.now();
-        LocalDate today = LocalDate.now();
         LocalDateTime now = LocalDateTime.now();
 
         // Create bookings with different statuses
