@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -196,5 +197,26 @@ class BookingControllerIT {
         mockMvc.perform(get("/api/bookings?itemId=0"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    @XrayTest(key = "BOOK-7")
+    @Tag("integration")
+    void getMyBookings_WithExpiredPayment_ShouldAutoCancel() throws Exception {
+        BookingRequest booking = new BookingRequest();
+        booking.setItemId(item.getId());
+        booking.setUserId(renter.getId());
+        booking.setStartDate(LocalDate.of(2035, 12, 1));
+        booking.setEndDate(LocalDate.of(2035, 12, 2));
+        booking.setStatus(BookingStatus.APPROVED);
+        booking.setPaymentStatus(PaymentStatus.UNPAID);
+        booking.setApprovedAt(LocalDateTime.now().minusDays(2));
+        booking.setPaymentDueAt(LocalDateTime.now().minusMinutes(1));
+        bookingRepository.save(booking);
+
+        mockMvc.perform(get("/api/bookings/my-bookings")
+                        .param("userId", renter.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].status").value("CANCELLED"));
     }
 }

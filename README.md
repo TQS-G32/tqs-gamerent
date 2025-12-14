@@ -52,6 +52,15 @@ docker-compose up --build
 - **E2E**: `mvn test -Dtest=PlaywrightIT`
 - **Performance**: `k6 run backend/src/test/performance/loadtest.js`
 
+## Payments (Stripe test mode)
+GameRent uses **Stripe Checkout in test/sandbox mode**. No real charges are made.
+
+To simulate a successful payment, use Stripe’s test card:
+- Card number: `4242 4242 4242 4242`
+- Expiry: any future date (e.g., `12/34`)
+- CVC: any 3 digits (e.g., `123`)
+- ZIP/Postal code: any value
+
 ## CI/CD
 Configured in `.github/workflows/build.yml` to run tests and SonarQube analysis on push.
 

@@ -1,6 +1,7 @@
 package gamerent.data;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import java.time.LocalDate;
 
 @Entity
@@ -22,6 +23,17 @@ public class BookingRequest {
 
     @Enumerated(EnumType.STRING)
     private BookingStatus status = BookingStatus.PENDING;
+
+    @Enumerated(EnumType.STRING)
+    private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
+
+    private String stripeCheckoutSessionId;
+    private String stripePaymentIntentId;
+
+    private LocalDateTime paidAt;
+
+    private LocalDateTime approvedAt;
+    private LocalDateTime paymentDueAt;
 
     public Long getId() {
         return id;
@@ -64,5 +76,47 @@ public class BookingRequest {
     }
     public void setStatus(BookingStatus status) {
         this.status = status;
+    }
+
+    public PaymentStatus getPaymentStatus() {
+        return paymentStatus;
+    }
+    public void setPaymentStatus(PaymentStatus paymentStatus) {
+        this.paymentStatus = paymentStatus;
+    }
+
+    public String getStripeCheckoutSessionId() {
+        return stripeCheckoutSessionId;
+    }
+    public void setStripeCheckoutSessionId(String stripeCheckoutSessionId) {
+        this.stripeCheckoutSessionId = stripeCheckoutSessionId;
+    }
+
+    public String getStripePaymentIntentId() {
+        return stripePaymentIntentId;
+    }
+    public void setStripePaymentIntentId(String stripePaymentIntentId) {
+        this.stripePaymentIntentId = stripePaymentIntentId;
+    }
+
+    public LocalDateTime getPaidAt() {
+        return paidAt;
+    }
+    public void setPaidAt(LocalDateTime paidAt) {
+        this.paidAt = paidAt;
+    }
+
+    public LocalDateTime getApprovedAt() {
+        return approvedAt;
+    }
+    public void setApprovedAt(LocalDateTime approvedAt) {
+        this.approvedAt = approvedAt;
+    }
+
+    public LocalDateTime getPaymentDueAt() {
+        return paymentDueAt;
+    }
+    public void setPaymentDueAt(LocalDateTime paymentDueAt) {
+        this.paymentDueAt = paymentDueAt;
     }
 }

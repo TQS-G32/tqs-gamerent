@@ -184,6 +184,12 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- Stripe SDK (test-mode payments) -->
+        <dependency>
+            <groupId>com.stripe</groupId>
+            <artifactId>stripe-java</artifactId>
+            <version>26.12.0</version>
+        </dependency>
     </dependencies>
 
         <build>
