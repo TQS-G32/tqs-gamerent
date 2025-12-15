@@ -11,11 +11,13 @@ import gamerent.data.ReviewTargetType;
 import gamerent.data.User;
 import gamerent.data.UserRepository;
 import gamerent.boundary.dto.ReviewResponse;
+import gamerent.config.ReviewValidationException;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 @Service
@@ -44,19 +46,19 @@ public class ReviewService {
         validateRequiredFields(review);
 
         BookingRequest booking = bookingRepository.findById(review.getBookingId())
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
+                .orElseThrow(() -> new NoSuchElementException("Booking not found"));
 
         if (booking.getStatus() != BookingStatus.APPROVED) {
-            throw new RuntimeException("Booking must be approved to review");
+            throw new ReviewValidationException("Booking must be approved to review");
         }
 
         LocalDate today = LocalDate.now(clock);
         if (booking.getEndDate() == null || booking.getEndDate().isAfter(today)) {
-            throw new RuntimeException("You can only review after the rental period has ended");
+            throw new ReviewValidationException("You can only review after the rental period has ended");
         }
 
         Item item = itemRepository.findById(booking.getItemId())
-                .orElseThrow(() -> new RuntimeException("Item not found"));
+                .orElseThrow(() -> new NoSuchElementException("Item not found"));
 
         enforceParticipantRules(reviewerId, review, booking, item);
 
@@ -68,7 +70,7 @@ public class ReviewService {
                 review.getTargetType(),
                 review.getTargetId()
         ).ifPresent(existing -> {
-            throw new RuntimeException("You have already submitted this review");
+            throw new ReviewValidationException("You have already submitted this review");
         });
 
         return reviewRepository.save(review);
@@ -94,13 +96,13 @@ public class ReviewService {
 
     private void validateRequiredFields(Review review) {
         if (review.getBookingId() == null) {
-            throw new RuntimeException("bookingId is required");
+            throw new ReviewValidationException("bookingId is required");
         }
         if (review.getTargetType() == null) {
-            throw new RuntimeException("targetType is required");
+            throw new ReviewValidationException("targetType is required");
         }
         if (review.getRating() == null || review.getRating() < 1 || review.getRating() > 5) {
-            throw new RuntimeException("rating must be between 1 and 5");
+            throw new ReviewValidationException("rating must be between 1 and 5");
         }
     }
 
@@ -114,17 +116,17 @@ public class ReviewService {
             validateUserReview(reviewerId, review, booking, item);
             return;
         }
-        throw new RuntimeException("Unsupported review target");
+        throw new ReviewValidationException("Unsupported review target");
     }
 
     private void validateItemReview(Long reviewerId, Review review, BookingRequest booking) {
         Long bookingItemId = booking.getItemId();
         review.setTargetId(review.getTargetId() != null ? review.getTargetId() : bookingItemId);
         if (!booking.getUserId().equals(reviewerId)) {
-            throw new RuntimeException("Only the renter can review this item");
+            throw new ReviewValidationException("Only the renter can review this item");
         }
         if (!bookingItemId.equals(review.getTargetId())) {
-            throw new RuntimeException("Review target item does not match booking item");
+            throw new ReviewValidationException("Review target item does not match booking item");
         }
     }
 
@@ -135,7 +137,7 @@ public class ReviewService {
         boolean reviewerIsOwner = ownerId != null && ownerId.equals(reviewerId);
 
         if (!reviewerIsRenter && !reviewerIsOwner) {
-            throw new RuntimeException("Only booking participants can review each other");
+            throw new ReviewValidationException("Only booking participants can review each other");
         }
 
         if (reviewerIsRenter) {
@@ -148,7 +150,7 @@ public class ReviewService {
     private void setTargetOrThrow(Review review, Long expectedTargetId, String errorMessage) {
         review.setTargetId(review.getTargetId() != null ? review.getTargetId() : expectedTargetId);
         if (review.getTargetId() == null || !review.getTargetId().equals(expectedTargetId)) {
-            throw new RuntimeException(errorMessage);
+            throw new ReviewValidationException(errorMessage);
         }
     }
 

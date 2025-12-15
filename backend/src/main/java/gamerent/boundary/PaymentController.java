@@ -8,10 +8,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/payments")
+@CrossOrigin(origins = "*")
 public class PaymentController {
+    private static final Logger logger = Logger.getLogger(PaymentController.class.getName());
     private static final String USER_ID_KEY = "userId";
 
     private final PaymentService paymentService;
@@ -32,8 +36,12 @@ public class PaymentController {
                                                          HttpServletRequest request) {
         Long userId = resolveCurrentUserId(request);
         String baseUrl = resolveFrontendBaseUrl(request);
+        logger.log(Level.INFO, "Checkout session creation - User: {0}, Booking: {1}", 
+            new Object[]{userId, body.bookingId()});
         try {
             StripeCheckoutSession session = paymentService.createCheckoutSession(body.bookingId(), userId, baseUrl);
+            logger.log(Level.INFO, "Checkout session created successfully - Booking: {0}, Session: {1}", 
+                new Object[]{body.bookingId(), session.id()});
             return new CheckoutSessionResponse(session.url(), session.id());
         } catch (RuntimeException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
@@ -43,8 +51,13 @@ public class PaymentController {
     @PostMapping("/confirm")
     public BookingRequest confirmPayment(@RequestBody ConfirmPaymentRequest body, HttpServletRequest request) {
         Long userId = resolveCurrentUserId(request);
+        logger.log(Level.INFO, "Payment confirmation attempt - User: {0}, Booking: {1}, Session: {2}", 
+            new Object[]{userId, body.bookingId(), body.sessionId()});
         try {
-            return paymentService.confirmPayment(body.bookingId(), body.sessionId(), userId);
+            BookingRequest confirmed = paymentService.confirmPayment(body.bookingId(), body.sessionId(), userId);
+            logger.log(Level.INFO, "Payment confirmed successfully - Booking: {0}, Amount: {1}", 
+                new Object[]{body.bookingId(), confirmed.getTotalPrice()});
+            return confirmed;
         } catch (RuntimeException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         }

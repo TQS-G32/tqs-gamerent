@@ -110,7 +110,7 @@ class PaymentControllerIT {
     }
 
     @Test
-    @XrayTest(key = "PAY-1")
+    @XrayTest(key = "TGR-36")
     @Tag("integration")
     void createCheckoutSession_ThenConfirm_ShouldMarkBookingPaid() throws Exception {
         // 1) Create checkout session
@@ -153,7 +153,7 @@ class PaymentControllerIT {
     }
 
     @Test
-    @XrayTest(key = "PAY-2")
+    @XrayTest(key = "TGR-36")
     @Tag("integration")
     void createCheckoutSession_WhenExpired_ShouldCancelBookingAndReturnBadRequest() throws Exception {
         booking.setPaymentDueAt(java.time.LocalDateTime.now().minusMinutes(1));

@@ -13,6 +13,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/reviews")
+@CrossOrigin(origins = "*")
 public class ReviewController {
     private static final String USER_ID_KEY = "userId";
 

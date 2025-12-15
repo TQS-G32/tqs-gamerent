@@ -7,6 +7,7 @@ import com.stripe.param.checkout.SessionCreateParams;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import gamerent.config.PaymentException;
 import java.util.Map;
 
 @Component
@@ -66,7 +67,7 @@ public class StripeGatewayImpl implements StripeGateway {
                     session.getAmountTotal()
             );
         } catch (StripeException e) {
-            throw new RuntimeException("Stripe error creating checkout session: " + e.getMessage(), e);
+            throw new PaymentException("Stripe error creating checkout session: " + e.getMessage(), e);
         }
     }
 
@@ -86,7 +87,7 @@ public class StripeGatewayImpl implements StripeGateway {
                     session.getAmountTotal()
             );
         } catch (StripeException e) {
-            throw new RuntimeException("Stripe error retrieving checkout session: " + e.getMessage(), e);
+            throw new PaymentException("Stripe error retrieving checkout session: " + e.getMessage(), e);
         }
     }
 }

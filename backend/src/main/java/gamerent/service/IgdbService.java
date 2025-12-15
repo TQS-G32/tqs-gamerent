@@ -18,6 +18,7 @@ public class IgdbService {
     private static final String PLATFORMS_URL = "https://api.igdb.com/v4/platforms";
     private static final Logger logger = Logger.getLogger(IgdbService.class.getName());
     private static final String PLATFORM_LOGOS_URL = "https://api.igdb.com/v4/platform_logos";
+    private static final String PLATFORM_LOGO = "platform_logo";
     
     @Value("${igdb.client-id}")
     private String clientId;
@@ -74,20 +75,20 @@ public class IgdbService {
             JsonNode[] platforms = mapper.readValue(platformsJson, JsonNode[].class);
             
             for (JsonNode platform : platforms) {
-                if (platform.has("platform_logo")) {
-                    long logoId = platform.get("platform_logo").asLong();
+                if (platform.has(PLATFORM_LOGO)) {
+                    long logoId = platform.get(PLATFORM_LOGO).asLong();
                     String logoUrl = fetchPlatformLogoUrl(logoId, headers);
                     
                     // Create a new object node to replace platform_logo with the URL
                     com.fasterxml.jackson.databind.node.ObjectNode logoNode = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
                     logoNode.put("url", logoUrl);
-                    ((com.fasterxml.jackson.databind.node.ObjectNode) platform).set("platform_logo", logoNode);
+                    ((com.fasterxml.jackson.databind.node.ObjectNode) platform).set(PLATFORM_LOGO, logoNode);
                 }
             }
             
             return mapper.writeValueAsString(platforms);
         } catch (Exception e) {
-            System.err.println("Error resolving platform logos: " + e.getMessage());
+            logger.log(Level.WARNING, "Error resolving platform logos: {0}", e.getMessage());
             return platformsJson;
         }
     }
@@ -105,7 +106,7 @@ public class IgdbService {
                 return logos[0].get("url").asText();
             }
         } catch (Exception e) {
-            System.err.println("Error fetching platform logo " + logoId + ": " + e.getMessage());
+            logger.log(Level.WARNING, "Error fetching platform logo: {0}", e.getMessage());
         }
         return null;
     }

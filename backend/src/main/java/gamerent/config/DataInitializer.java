@@ -9,6 +9,8 @@ import gamerent.service.ItemService;
 import gamerent.data.ItemRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -17,6 +19,7 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
+    private static final Logger logger = Logger.getLogger(DataInitializer.class.getName());
 
     @Value("${app.init.demoPassword:}")
     private String demoPassword;
@@ -69,7 +72,7 @@ public class DataInitializer implements CommandLineRunner {
             jdbcTemplate.execute("ALTER TABLE review ALTER COLUMN target_type TYPE VARCHAR(20)");
             jdbcTemplate.execute("ALTER TABLE review ADD CONSTRAINT review_target_type_check CHECK (target_type IN ('ITEM','USER'))");
         } catch (Exception e) {
-            System.err.println("Failed to adjust review constraint: " + e.getMessage());
+            logger.log(Level.WARNING, "Failed to adjust review constraint");
         }
     }
 }

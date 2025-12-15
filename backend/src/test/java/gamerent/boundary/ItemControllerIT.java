@@ -56,7 +56,7 @@ class ItemControllerIT {
     }
 
     @Test
-    @XrayTest(key = "ITEM-1")
+    @XrayTest(key = "TGR-33")
     @Tag("integration")
     void getCatalog_ShouldReturnAllItems() throws Exception {
         // Create test items
@@ -86,7 +86,7 @@ class ItemControllerIT {
     }
 
     @Test
-    @XrayTest(key = "ITEM-2")
+    @XrayTest(key = "TGR-33")
     @Tag("integration")
     void getCatalog_WithSearchQuery_ShouldFilterResults() throws Exception {
         Item item1 = new Item();
@@ -111,7 +111,7 @@ class ItemControllerIT {
     }
 
     @Test
-    @XrayTest(key = "ITEM-3")
+    @XrayTest(key = "TGR-33")
     @Tag("integration")
     void getCatalog_WithCategoryFilter_ShouldFilterResults() throws Exception {
         Item console = new Item();
@@ -136,7 +136,7 @@ class ItemControllerIT {
     }
 
     @Test
-    @XrayTest(key = "ITEM-4")
+    @XrayTest(key = "TGR-33")
     @Tag("integration")
     void getCatalog_WithRentableFilter_ShouldOnlyReturnAvailableItems() throws Exception {
         Item available = new Item();
@@ -163,77 +163,7 @@ class ItemControllerIT {
     }
 
     @Test
-    @XrayTest(key = "ITEM-5")
-    @Tag("integration")
-    void getItemById_ShouldReturnItem() throws Exception {
-        Item item = new Item();
-        item.setName("Test Item");
-        item.setCategory("Console");
-        item.setPricePerDay(10.0);
-        item.setDescription("Test description");
-        item.setOwner(testOwner);
-        item = itemRepository.save(item);
-
-        mockMvc.perform(get("/api/items/{id}", item.getId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Test Item"))
-                .andExpect(jsonPath("$.category").value("Console"));
-    }
-
-    @Test
-    @XrayTest(key = "ITEM-6")
-    @Tag("integration")
-    void getItemById_WithInvalidId_ShouldReturn404() throws Exception {
-        mockMvc.perform(get("/api/items/{id}", 99999L))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
-    @XrayTest(key = "ITEM-7")
-    @Tag("integration")    @WithMockUser    void createItem_ShouldCreateNewItem() throws Exception {
-        String itemJson = """
-            {
-                "name": "New Console",
-                "category": "Console",
-                "pricePerDay": 20.0,
-                "description": "Brand new console",
-                "available": true
-            }
-            """;
-
-        mockMvc.perform(post("/api/items")
-                .sessionAttr("userId", testOwner.getId())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(itemJson))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("New Console"))
-                .andExpect(jsonPath("$.pricePerDay").value(20.0));
-
-        // Verify item was created in database
-        assertThat(itemRepository.findAll().stream()
-                .anyMatch(i -> i.getName().equals("New Console"))).isTrue();
-    }
-
-    @Test
-    @XrayTest(key = "ITEM-8")
-    @Tag("integration")
-    void createItem_WithoutSession_ShouldReturn401() throws Exception {
-        String itemJson = """
-            {
-                "name": "New Console",
-                "category": "Console",
-                "pricePerDay": 20.0
-            }
-            """;
-
-        mockMvc.perform(post("/api/items")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(itemJson))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    @XrayTest(key = "ITEM-9")
+    @XrayTest(key = "TGR-33")
     @Tag("integration")
     void getCatalog_WithPagination_ShouldReturnCorrectPage() throws Exception {
         // Create multiple items
@@ -259,5 +189,76 @@ class ItemControllerIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(5))
                 .andExpect(jsonPath("$.page").value(1));
+    }
+
+    @Test
+    @XrayTest(key = "TGR-34")
+    @Tag("integration")
+    void getItemById_ShouldReturnItem() throws Exception {
+        Item item = new Item();
+        item.setName("Test Item");
+        item.setCategory("Console");
+        item.setPricePerDay(10.0);
+        item.setDescription("Test description");
+        item.setOwner(testOwner);
+        item = itemRepository.save(item);
+
+        mockMvc.perform(get("/api/items/{id}", item.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Test Item"))
+                .andExpect(jsonPath("$.category").value("Console"));
+    }
+
+    @Test
+    @XrayTest(key = "TGR-34")
+    @Tag("integration")
+    void getItemById_WithInvalidId_ShouldReturn404() throws Exception {
+        mockMvc.perform(get("/api/items/{id}", 99999L))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @XrayTest(key = "TGR-35")
+    @Tag("integration") 
+    void createItem_ShouldCreateNewItem() throws Exception {
+        String itemJson = """
+            {
+                "name": "New Console",
+                "category": "Console",
+                "pricePerDay": 20.0,
+                "description": "Brand new console",
+                "available": true
+            }
+            """;
+
+        mockMvc.perform(post("/api/items")
+                .sessionAttr("userId", testOwner.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(itemJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("New Console"))
+                .andExpect(jsonPath("$.pricePerDay").value(20.0));
+
+        // Verify item was created in database
+        assertThat(itemRepository.findAll().stream()
+                .anyMatch(i -> i.getName().equals("New Console"))).isTrue();
+    }
+
+    @Test
+    @XrayTest(key = "TGR-35")
+    @Tag("integration")
+    void createItem_WithoutSession_ShouldReturn401() throws Exception {
+        String itemJson = """
+            {
+                "name": "New Console",
+                "category": "Console",
+                "pricePerDay": 20.0
+            }
+            """;
+
+        mockMvc.perform(post("/api/items")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(itemJson))
+                .andExpect(status().isUnauthorized());
     }
 }
