@@ -25,7 +25,7 @@ class IgdbControllerIT {
     private IgdbService igdbService;
 
     @Test
-    @XrayTest(key = "IGDB-1")
+    @XrayTest(key = "TGR-32")
     @Tag("integration")
     void searchGames_WithQuery_ShouldReturnResults() throws Exception {
         mockMvc.perform(get("/api/igdb/search")
@@ -34,7 +34,7 @@ class IgdbControllerIT {
     }
 
     @Test
-    @XrayTest(key = "IGDB-2")
+    @XrayTest(key = "TGR-32")
     @Tag("integration")
     void searchGames_WithTypeParameter_ShouldReturnResults() throws Exception {
         mockMvc.perform(get("/api/igdb/search")
@@ -44,7 +44,7 @@ class IgdbControllerIT {
     }
 
     @Test
-    @XrayTest(key = "IGDB-3")
+    @XrayTest(key = "TGR-32")
     @Tag("integration")
     void searchGames_WithEmptyQuery_ShouldReturnResults() throws Exception {
         mockMvc.perform(get("/api/igdb/search")
@@ -53,7 +53,7 @@ class IgdbControllerIT {
     }
 
     @Test
-    @XrayTest(key = "IGDB-4")
+    @XrayTest(key = "TGR-32")
     @Tag("integration")
     void searchGames_WithSpecialCharacters_ShouldHandleGracefully() throws Exception {
         mockMvc.perform(get("/api/igdb/search")
@@ -62,7 +62,7 @@ class IgdbControllerIT {
     }
 
     @Test
-    @XrayTest(key = "IGDB-5")
+    @XrayTest(key = "TGR-32")
     @Tag("integration")
     void searchGames_WithoutTypeParameter_ShouldDefaultToGame() throws Exception {
         mockMvc.perform(get("/api/igdb/search")
@@ -71,7 +71,7 @@ class IgdbControllerIT {
     }
 
     @Test
-    @XrayTest(key = "IGDB-6")
+    @XrayTest(key = "TGR-32")
     @Tag("integration")
     void searchGames_WithLongQuery_ShouldReturnResults() throws Exception {
         mockMvc.perform(get("/api/igdb/search")

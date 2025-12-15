@@ -93,7 +93,7 @@ class ReviewControllerIT {
     }
 
     @Test
-    @XrayTest(key = "REVIEW-1")
+    @XrayTest(key = "TGR-37")
     @Tag("integration")
     void addReview_ForItem_ShouldCreateReview() throws Exception {
         String reviewJson = """
@@ -120,7 +120,7 @@ class ReviewControllerIT {
     }
 
     @Test
-    @XrayTest(key = "REVIEW-2")
+    @XrayTest(key = "TGR-37")
     @Tag("integration")
     void addReview_ForUser_ShouldCreateReview() throws Exception {
         String reviewJson = """
@@ -143,7 +143,7 @@ class ReviewControllerIT {
     }
 
     @Test
-    @XrayTest(key = "REVIEW-3")
+    @XrayTest(key = "TGR-37")
     @Tag("integration")
     void addReview_WithoutSession_ShouldReturn401() throws Exception {
         String reviewJson = """
@@ -163,7 +163,49 @@ class ReviewControllerIT {
     }
 
     @Test
-    @XrayTest(key = "REVIEW-4")
+    @XrayTest(key = "TGR-37")
+    @Tag("integration")
+    void addReview_WithInvalidRating_ShouldReturnBadRequest() throws Exception {
+        String reviewJson = """
+            {
+                "bookingId": %d,
+                "targetType": "ITEM",
+                "targetId": %d,
+                "rating": 6,
+                "comment": "Invalid rating"
+            }
+            """.formatted(booking.getId(), item.getId());
+
+        mockMvc.perform(post("/api/reviews")
+                .sessionAttr("userId", renter.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(reviewJson))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @XrayTest(key = "TGR-37")
+    @Tag("integration")
+    void addReview_ForNonExistentBooking_ShouldReturnBadRequest() throws Exception {
+        String reviewJson = """
+            {
+                "bookingId": 99999,
+                "targetType": "ITEM",
+                "targetId": %d,
+                "rating": 5,
+                "comment": "Test"
+            }
+            """.formatted(item.getId());
+
+        mockMvc.perform(post("/api/reviews")
+                .sessionAttr("userId", renter.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(reviewJson))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @XrayTest(key = "TGR-38")
     @Tag("integration")
     void getReviewsByBooking_ShouldReturnReviews() throws Exception {
         // Create a review
@@ -184,7 +226,7 @@ class ReviewControllerIT {
     }
 
     @Test
-    @XrayTest(key = "REVIEW-5")
+    @XrayTest(key = "TGR-38")
     @Tag("integration")
     void getReviewsForItem_ShouldReturnItemReviews() throws Exception {
         // Create reviews for the item
@@ -213,7 +255,7 @@ class ReviewControllerIT {
     }
 
     @Test
-    @XrayTest(key = "REVIEW-6")
+    @XrayTest(key = "TGR-38")
     @Tag("integration")
     void getReviewsForUser_ShouldReturnUserReviews() throws Exception {
         // Create review for the user
@@ -234,54 +276,12 @@ class ReviewControllerIT {
     }
 
     @Test
-    @XrayTest(key = "REVIEW-7")
+    @XrayTest(key = "TGR-38")
     @Tag("integration")
     void getReviewsForItem_WithNoReviews_ShouldReturnEmptyArray() throws Exception {
         mockMvc.perform(get("/api/reviews/item/{itemId}", item.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(0));
-    }
-
-    @Test
-    @XrayTest(key = "REVIEW-8")
-    @Tag("integration")
-    void addReview_WithInvalidRating_ShouldReturnBadRequest() throws Exception {
-        String reviewJson = """
-            {
-                "bookingId": %d,
-                "targetType": "ITEM",
-                "targetId": %d,
-                "rating": 6,
-                "comment": "Invalid rating"
-            }
-            """.formatted(booking.getId(), item.getId());
-
-        mockMvc.perform(post("/api/reviews")
-                .sessionAttr("userId", renter.getId())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(reviewJson))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @XrayTest(key = "REVIEW-9")
-    @Tag("integration")
-    void addReview_ForNonExistentBooking_ShouldReturnBadRequest() throws Exception {
-        String reviewJson = """
-            {
-                "bookingId": 99999,
-                "targetType": "ITEM",
-                "targetId": %d,
-                "rating": 5,
-                "comment": "Test"
-            }
-            """.formatted(item.getId());
-
-        mockMvc.perform(post("/api/reviews")
-                .sessionAttr("userId", renter.getId())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(reviewJson))
-                .andExpect(status().isBadRequest());
     }
 }

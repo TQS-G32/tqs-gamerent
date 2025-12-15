@@ -47,7 +47,7 @@ class AuthControllerIT {
     }
 
     @Test
-    @XrayTest(key = "AUTH-1")
+    @XrayTest(key = "TGR-22")
     @Tag("integration")
     void registerUser_ShouldCreateNewUser() throws Exception {
         Map<String, String> registerRequest = Map.of(
@@ -69,7 +69,7 @@ class AuthControllerIT {
     }
 
     @Test
-    @XrayTest(key = "AUTH-2")
+    @XrayTest(key = "TGR-22")
     @Tag("integration")
     void registerUser_WithExistingEmail_ShouldReturnBadRequest() throws Exception {
         // Create user first
@@ -96,7 +96,7 @@ class AuthControllerIT {
     }
 
     @Test
-    @XrayTest(key = "AUTH-3")
+    @XrayTest(key = "TGR-23")
     @Tag("integration")
     void loginUser_WithValidCredentials_ShouldCreateSession() throws Exception {
         // Create user first
@@ -128,7 +128,7 @@ class AuthControllerIT {
     }
 
     @Test
-    @XrayTest(key = "AUTH-4")
+    @XrayTest(key = "TGR-23")
     @Tag("integration")
     void loginUser_WithInvalidCredentials_ShouldReturnUnauthorized() throws Exception {
         Map<String, String> loginRequest = Map.of(
@@ -143,7 +143,7 @@ class AuthControllerIT {
     }
 
     @Test
-    @XrayTest(key = "AUTH-5")
+    @XrayTest(key = "TGR-24")
     @Tag("integration")
     void getMe_WithValidSession_ShouldReturnUserInfo() throws Exception {
         // Create user and login
@@ -170,7 +170,7 @@ class AuthControllerIT {
     }
 
     @Test
-    @XrayTest(key = "AUTH-6")
+    @XrayTest(key = "TGR-24")
     @Tag("integration")
     void getMe_WithoutSession_ShouldReturnUnauthorized() throws Exception {
         mockMvc.perform(get("/api/auth/me"))
@@ -178,7 +178,7 @@ class AuthControllerIT {
     }
 
     @Test
-    @XrayTest(key = "AUTH-7")
+    @XrayTest(key = "TGR-25")
     @Tag("integration")
     void logout_ShouldInvalidateSession() throws Exception {
         // Create user and login
@@ -207,7 +207,7 @@ class AuthControllerIT {
     }
 
     @Test
-    @XrayTest(key = "AUTH-8")
+    @XrayTest(key = "TGR-26")
     @Tag("integration")
     void fullAuthFlow_RegisterLoginMeLogout_ShouldWork() throws Exception {
         MockHttpSession session = new MockHttpSession();

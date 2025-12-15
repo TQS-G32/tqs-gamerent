@@ -47,7 +47,7 @@ class UserControllerIT {
     }
 
     @Test
-    @XrayTest(key = "USER-1")
+    @XrayTest(key = "TGR-39")
     @Tag("integration")
     void getAllUsers_ShouldReturnAllUsers() throws Exception {
         // Create test users
@@ -72,7 +72,7 @@ class UserControllerIT {
     }
 
     @Test
-    @XrayTest(key = "USER-2")
+    @XrayTest(key = "TGR-40")
     @Tag("integration")
     void addUser_ShouldCreateNewUser() throws Exception {
         String userJson = """
@@ -99,7 +99,7 @@ class UserControllerIT {
     }
 
     @Test
-    @XrayTest(key = "USER-3")
+    @XrayTest(key = "TGR-41")
     @Tag("integration")
     void getUserProfile_ShouldReturnUserWithItems() throws Exception {
         // Create user
@@ -140,7 +140,7 @@ class UserControllerIT {
     }
 
     @Test
-    @XrayTest(key = "USER-4")
+    @XrayTest(key = "TGR-41")
     @Tag("integration")
     void getUserProfile_WithInvalidId_ShouldReturn404() throws Exception {
         mockMvc.perform(get("/api/users/{id}/profile", 99999L))
@@ -148,7 +148,7 @@ class UserControllerIT {
     }
 
     @Test
-    @XrayTest(key = "USER-5")
+    @XrayTest(key = "TGR-41")
     @Tag("integration")
     void getUserProfile_WithNoItems_ShouldReturnEmptyItemsList() throws Exception {
         // Create user without items

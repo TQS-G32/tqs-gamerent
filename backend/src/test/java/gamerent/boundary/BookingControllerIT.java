@@ -92,7 +92,7 @@ class BookingControllerIT {
     }
     
     @Test
-    @XrayTest(key = "BOOK-1")
+    @XrayTest(key = "TGR-27")
     @Tag("integration")
     void createBooking_ShouldReturn200AndCreateBooking() throws Exception {
         String json = """
@@ -115,7 +115,7 @@ class BookingControllerIT {
     }
     
     @Test
-    @XrayTest(key = "BOOK-2")
+    @XrayTest(key = "TGR-28")
     @Tag("integration")
     void getMyBookings_ShouldReturn200AndListBookings() throws Exception {
         // Create a booking
@@ -133,9 +133,30 @@ class BookingControllerIT {
                 .andExpect(jsonPath("$[0].userId").value(renter.getId()))
                 .andExpect(jsonPath("$[0].itemId").value(item.getId()));
     }
+
+    @Test
+    @XrayTest(key = "TGR-28")
+    @Tag("integration")
+    void getMyBookings_WithExpiredPayment_ShouldAutoCancel() throws Exception {
+        BookingRequest booking = new BookingRequest();
+        booking.setItemId(item.getId());
+        booking.setUserId(renter.getId());
+        booking.setStartDate(LocalDate.of(2035, 12, 1));
+        booking.setEndDate(LocalDate.of(2035, 12, 2));
+        booking.setStatus(BookingStatus.APPROVED);
+        booking.setPaymentStatus(PaymentStatus.UNPAID);
+        booking.setApprovedAt(LocalDateTime.now().minusDays(2));
+        booking.setPaymentDueAt(LocalDateTime.now().minusMinutes(1));
+        bookingRepository.save(booking);
+
+        mockMvc.perform(get("/api/bookings/my-bookings")
+                        .param("userId", renter.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].status").value("CANCELLED"));
+    }
     
     @Test
-    @XrayTest(key = "BOOK-3")
+    @XrayTest(key = "TGR-29")
     @Tag("integration")
     void getIncomingRequests_ShouldReturn200AndListRequests() throws Exception {
         // Create a booking for owner's item
@@ -155,7 +176,7 @@ class BookingControllerIT {
     }
     
     @Test
-    @XrayTest(key = "BOOK-4")
+    @XrayTest(key = "TGR-30")
     @Tag("integration")
     void updateStatus_ShouldReturn200AndUpdateBooking() throws Exception {
         // Create a booking
@@ -182,7 +203,7 @@ class BookingControllerIT {
     }
 
     @Test
-    @XrayTest(key = "BOOK-5")
+    @XrayTest(key = "TGR-31")
     @Tag("integration")
     void getBookingsByItem_NoItemId_ShouldReturnEmpty() throws Exception {
         mockMvc.perform(get("/api/bookings"))
@@ -190,33 +211,12 @@ class BookingControllerIT {
                 .andExpect(jsonPath("$").isEmpty());
     }
 
-    @XrayTest(key = "BOOK-6")
+    @XrayTest(key = "TGR-31")
     @Tag("integration")
     @Test
     void getBookingsByItem_InvalidItemId_ShouldReturnEmpty() throws Exception {
         mockMvc.perform(get("/api/bookings?itemId=0"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
-    }
-
-    @Test
-    @XrayTest(key = "BOOK-7")
-    @Tag("integration")
-    void getMyBookings_WithExpiredPayment_ShouldAutoCancel() throws Exception {
-        BookingRequest booking = new BookingRequest();
-        booking.setItemId(item.getId());
-        booking.setUserId(renter.getId());
-        booking.setStartDate(LocalDate.of(2035, 12, 1));
-        booking.setEndDate(LocalDate.of(2035, 12, 2));
-        booking.setStatus(BookingStatus.APPROVED);
-        booking.setPaymentStatus(PaymentStatus.UNPAID);
-        booking.setApprovedAt(LocalDateTime.now().minusDays(2));
-        booking.setPaymentDueAt(LocalDateTime.now().minusMinutes(1));
-        bookingRepository.save(booking);
-
-        mockMvc.perform(get("/api/bookings/my-bookings")
-                        .param("userId", renter.getId().toString()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].status").value("CANCELLED"));
     }
 }
