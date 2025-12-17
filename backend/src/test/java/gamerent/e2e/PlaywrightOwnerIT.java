@@ -67,25 +67,46 @@ class PlaywrightOwnerIT {
         context.close();
     }
 
-    @Disabled("")
     @Test
     void testOwnerCanOpenItemPageAndSeeBookingControls() {
-        String baseUrl = "http://localhost:" + serverPort;
+        String baseUrl = "http://localhost:3000";
 
         HomePage homePage = new HomePage(page);
         homePage.navigate(baseUrl);
 
-        try {
-            page.waitForSelector(".item-card", new Page.WaitForSelectorOptions().setTimeout(60000));
-        } catch (Exception e) {
-            System.out.println("Page content at timeout: " + page.content());
-            throw e;
-        }
+        page.waitForSelector(".item-card", new Page.WaitForSelectorOptions().setTimeout(10000));
 
         homePage.selectFirstItem();
+        page.waitForURL("**/item/**", new Page.WaitForURLOptions().setTimeout(5000));
+        page.waitForTimeout(1000); // Wait for React to render
 
         ItemPage itemPage = new ItemPage(page);
-        // we only check that the booking UI is present
-        assertTrue(itemPage.hasBookingControls() || itemPage.isBookingSuccessful());
+        
+        // Verify item page loaded
+        assertTrue(itemPage.hasItemDetails(), "Item details should be visible");
+        
+        // Check for rental or booking UI
+        assertTrue(itemPage.hasBookingControls() || itemPage.hasAvailableRentalsSection(), 
+                  "Should have booking or rental section");
+    }
+
+    @Test
+    void testItemDetailsPageComponents() {
+        String baseUrl = "http://localhost:3000";
+
+        HomePage homePage = new HomePage(page);
+        homePage.navigate(baseUrl);
+
+        page.waitForSelector(".item-card", new Page.WaitForSelectorOptions().setTimeout(10000));
+        homePage.selectFirstItem();
+        page.waitForURL("**/item/**", new Page.WaitForURLOptions().setTimeout(5000));
+        page.waitForTimeout(1000); // Wait for React to render
+
+        ItemPage itemPage = new ItemPage(page);
+        
+        // Verify various components
+        assertTrue(itemPage.hasItemDetails(), "Should have item details");
+        assertTrue(itemPage.hasOwnerCard(), "Should have owner information card");
+        assertTrue(page.isVisible("text=⭐ Item reviews"), "Should have reviews section");
     }
 }
