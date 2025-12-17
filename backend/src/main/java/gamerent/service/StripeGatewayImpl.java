@@ -25,7 +25,7 @@ public class StripeGatewayImpl implements StripeGateway {
             throw new IllegalStateException("Stripe secret key not configured");
         }
 
-        Stripe.apiKey = secretKey;
+        setStripeApiKey();
 
         SessionCreateParams.LineItem.PriceData.ProductData productData =
                 SessionCreateParams.LineItem.PriceData.ProductData.builder()
@@ -76,7 +76,7 @@ public class StripeGatewayImpl implements StripeGateway {
         if (secretKey == null || secretKey.isBlank()) {
             throw new IllegalStateException("Stripe secret key not configured");
         }
-        Stripe.apiKey = secretKey;
+        setStripeApiKey();
         try {
             Session session = Session.retrieve(sessionId);
             return new StripeCheckoutSession(
@@ -89,6 +89,10 @@ public class StripeGatewayImpl implements StripeGateway {
         } catch (StripeException e) {
             throw new PaymentException("Stripe error retrieving checkout session: " + e.getMessage(), e);
         }
+    }
+
+    private synchronized void setStripeApiKey() {
+        Stripe.apiKey = secretKey;
     }
 }
 

@@ -84,14 +84,14 @@ public class ReviewService {
         return reviewRepository.findByTargetTypeAndTargetId(ReviewTargetType.ITEM, itemId)
                 .stream()
                 .map(this::toResponse)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public List<ReviewResponse> getReviewsForUser(Long userId) {
         return reviewRepository.findByTargetTypeAndTargetId(ReviewTargetType.USER, userId)
                 .stream()
                 .map(this::toResponse)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private void validateRequiredFields(Review review) {

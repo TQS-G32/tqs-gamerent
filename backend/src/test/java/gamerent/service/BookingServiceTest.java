@@ -90,10 +90,10 @@ class BookingServiceTest {
         when(bookingRepository.findByItemIdAndStatus(1L, BookingStatus.APPROVED))
             .thenReturn(List.of(existing));
         
+        LocalDate start = LocalDate.now().plusDays(1);
+        LocalDate end = LocalDate.now().plusDays(5);
         assertThrows(RuntimeException.class, () -> bookingService.createBooking(
-            1L, 2L, 
-            LocalDate.now().plusDays(1),
-            LocalDate.now().plusDays(5)
+            1L, 2L, start, end
         ));
         
         verify(bookingRepository, never()).save(any());
@@ -103,10 +103,10 @@ class BookingServiceTest {
     void createBooking_ShouldValidateStartBeforeEnd() {
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
 
+        LocalDate start = LocalDate.now().plusDays(5);
+        LocalDate end = LocalDate.now().plusDays(1);
         assertThrows(RuntimeException.class, () -> bookingService.createBooking(
-            1L, 2L,
-            LocalDate.now().plusDays(5),
-            LocalDate.now().plusDays(1)
+            1L, 2L, start, end
         ));
 
         verify(bookingRepository, never()).save(any());
@@ -117,11 +117,12 @@ class BookingServiceTest {
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
         LocalDate pastDate = LocalDate.now().minusDays(1);
 
+        LocalDate endDate = pastDate.plusDays(3);
         assertThrows(RuntimeException.class, () -> {
             bookingService.createBooking(
                 1L, 2L,
                 pastDate,
-                pastDate.plusDays(3)
+                endDate
             );
         }, "Should throw exception when start date is in the past");
 
@@ -133,10 +134,10 @@ class BookingServiceTest {
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
         
         // item owner id is 1L (set in setUp)
+        LocalDate start = LocalDate.of(2025, 12, 1);
+        LocalDate end = LocalDate.of(2025, 12, 5);
         assertThrows(RuntimeException.class, () -> bookingService.createBooking(
-            1L, 1L, 
-            LocalDate.of(2025, 12, 1),
-            LocalDate.of(2025, 12, 5)
+            1L, 1L, start, end
         ));
         
         verify(bookingRepository, never()).save(any());
@@ -195,21 +196,25 @@ class BookingServiceTest {
     void createBooking_NullStartDate_ShouldThrowException() {
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
         
-        assertThrows(RuntimeException.class, () -> bookingService.createBooking(1L, 2L, null, LocalDate.now().plusDays(5)));
+        LocalDate end = LocalDate.now().plusDays(5);
+        assertThrows(RuntimeException.class, () -> bookingService.createBooking(1L, 2L, null, end));
     }
 
     @Test
     void createBooking_NullEndDate_ShouldThrowException() {
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
         
-        assertThrows(RuntimeException.class, () -> bookingService.createBooking(1L, 2L, LocalDate.now().plusDays(1), null));
+        LocalDate start = LocalDate.now().plusDays(1);
+        assertThrows(RuntimeException.class, () -> bookingService.createBooking(1L, 2L, start, null));
     }
 
     @Test
     void createBooking_ItemNotFound_ShouldThrowException() {
         when(itemRepository.findById(999L)).thenReturn(Optional.empty());
         
-        assertThrows(RuntimeException.class, () -> bookingService.createBooking(999L, 2L, LocalDate.now().plusDays(1), LocalDate.now().plusDays(5)));
+        LocalDate start = LocalDate.now().plusDays(1);
+        LocalDate end = LocalDate.now().plusDays(5);
+        assertThrows(RuntimeException.class, () -> bookingService.createBooking(999L, 2L, start, end));
     }
 
     @Test

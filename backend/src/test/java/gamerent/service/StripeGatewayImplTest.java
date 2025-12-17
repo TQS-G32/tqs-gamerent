@@ -40,7 +40,7 @@ class StripeGatewayImplTest {
     @Test
     @XrayTest(key = "PAY-UNIT-8")
     @Tag("unit")
-    void createCheckoutSession_ShouldMapStripeSessionFields() throws Exception {
+    void createCheckoutSession_ShouldMapStripeSessionFields() {
         StripeGatewayImpl gateway = new StripeGatewayImpl("sk_test_123");
 
         StripeCheckoutSessionCreateRequest req = new StripeCheckoutSessionCreateRequest(
@@ -74,7 +74,7 @@ class StripeGatewayImplTest {
     @Test
     @XrayTest(key = "PAY-UNIT-9")
     @Tag("unit")
-    void createCheckoutSession_ShouldWrapStripeException() throws Exception {
+    void createCheckoutSession_ShouldWrapStripeException() {
         StripeGatewayImpl gateway = new StripeGatewayImpl("sk_test_123");
         StripeCheckoutSessionCreateRequest req = new StripeCheckoutSessionCreateRequest(
                 500L,
@@ -99,7 +99,7 @@ class StripeGatewayImplTest {
     @Test
     @XrayTest(key = "PAY-UNIT-10")
     @Tag("unit")
-    void retrieveCheckoutSession_ShouldMapStripeSessionFields() throws Exception {
+    void retrieveCheckoutSession_ShouldMapStripeSessionFields() {
         StripeGatewayImpl gateway = new StripeGatewayImpl("sk_test_123");
 
         Session session = mock(Session.class);
@@ -124,7 +124,7 @@ class StripeGatewayImplTest {
     @Test
     @XrayTest(key = "PAY-UNIT-11")
     @Tag("unit")
-    void retrieveCheckoutSession_ShouldWrapStripeException() throws Exception {
+    void retrieveCheckoutSession_ShouldWrapStripeException() {
         StripeGatewayImpl gateway = new StripeGatewayImpl("sk_test_123");
 
         StripeException stripeEx = new StripeException("boom", null, null, 0, null) {};

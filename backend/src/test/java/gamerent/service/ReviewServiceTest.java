@@ -108,8 +108,9 @@ class ReviewServiceTest {
 
         when(bookingRepository.findById(futureBooking.getId())).thenReturn(Optional.of(futureBooking));
 
+        Long userId = futureBooking.getUserId();
         RuntimeException ex = assertThrows(RuntimeException.class, () -> {
-            reviewService.addReview(futureBooking.getUserId(), review);
+            reviewService.addReview(userId, review);
         });
         assertEquals("You can only review after the rental period has ended", ex.getMessage());
     }
@@ -145,7 +146,8 @@ class ReviewServiceTest {
         when(reviewRepository.findByBookingIdAndReviewerIdAndTargetTypeAndTargetId(anyLong(), anyLong(), any(), anyLong()))
                 .thenReturn(Optional.of(new Review()));
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> reviewService.addReview(approvedPastBooking.getUserId(), review));
+        Long userId = approvedPastBooking.getUserId();
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> reviewService.addReview(userId, review));
         assertEquals("You have already submitted this review", ex.getMessage());
     }
 
@@ -189,8 +191,9 @@ class ReviewServiceTest {
 
         when(bookingRepository.findById(pending.getId())).thenReturn(Optional.of(pending));
 
+        Long userId = pending.getUserId();
         RuntimeException ex = assertThrows(RuntimeException.class, () -> {
-            reviewService.addReview(pending.getUserId(), review);
+            reviewService.addReview(userId, review);
         });
         assertEquals("Booking must be approved to review", ex.getMessage());
     }
@@ -211,7 +214,8 @@ class ReviewServiceTest {
 
         when(bookingRepository.findById(future.getId())).thenReturn(Optional.of(future));
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> reviewService.addReview(future.getUserId(), review));
+        Long userId = future.getUserId();
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> reviewService.addReview(userId, review));
         assertEquals("You can only review after the rental period has ended", ex.getMessage());
     }
 
