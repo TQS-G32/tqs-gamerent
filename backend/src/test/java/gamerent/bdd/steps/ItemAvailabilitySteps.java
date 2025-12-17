@@ -14,8 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class ItemAvailabilitySteps {
 
     @Autowired
-    private UserRepository userRepository;
-    @Autowired
     private ItemRepository itemRepository;
 
     // Reuse the Given step from OwnerBookingsSteps to avoid duplicate step definitions
