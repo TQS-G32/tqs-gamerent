@@ -166,7 +166,6 @@ class PlaywrightFilterIT {
         // Filter by Game
         page.click("button:has-text('Game')");
         page.waitForTimeout(1000);
-        int gameCount = page.locator(".item-card").count();
         
         // Reset to All
         page.click("button:has-text('All')");
@@ -260,10 +259,6 @@ class PlaywrightFilterIT {
         page.navigate(baseUrl);
         
         page.waitForSelector(".item-card", new Page.WaitForSelectorOptions().setTimeout(10000));
-        
-        // Check if pagination controls are present (only if enough items)
-        boolean hasPagination = page.isVisible("button:has-text('Next')") || 
-                               page.isVisible("button:has-text('Previous')");
         
         // If items < page size, pagination might not show - that's okay
         assertTrue(true, "Pagination test completed");

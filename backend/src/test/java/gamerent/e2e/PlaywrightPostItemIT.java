@@ -1,7 +1,6 @@
 package gamerent.e2e;
 
 import com.microsoft.playwright.*;
-import gamerent.data.Item;
 import gamerent.data.ItemRepository;
 import gamerent.data.User;
 import gamerent.data.UserRepository;

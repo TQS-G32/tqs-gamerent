@@ -13,12 +13,10 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import java.util.logging.Logger;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("e2e")
 class PlaywrightSearchIT {
-    private static final Logger logger = Logger.getLogger(PlaywrightSearchIT.class.getName());
 
     @LocalServerPort
     private int serverPort;
