@@ -152,4 +152,36 @@ class PlaywrightAuthIT {
         // Verify navigation bar is still present
         assertTrue(page.isVisible(".nav-brand:has-text('GameRent')"), "GameRent brand should be visible");
     }
+
+    @Test
+    void testUserCanRegisterSuccessfully() {
+        String baseUrl = "http://localhost:3000";
+        page.navigate(baseUrl + "/auth");
+        page.waitForSelector("h2:has-text('LOGIN')", new Page.WaitForSelectorOptions().setTimeout(100));
+        page.click("button.auth-toggle:has-text('Register')");
+        // Email and password
+        page.fill("input[type='text']", "auth test");
+        page.fill("input[type='email']", "auth-test@example.com");
+        page.fill("input[type='password']", "password123");
+        page.click("button[type='submit']");
+        // Wait
+        page.waitForTimeout(100);
+        boolean loggedIn = page.url().contains("/home") || page.isVisible(".nav-brand:has-text('GameRent')");
+        assertTrue(loggedIn, "User must go to home after register");
+    }
+
+    @Test
+    void testUserCanLoginSuccessfully() {
+        String baseUrl = "http://localhost:3000";
+        page.navigate(baseUrl + "/auth");
+        page.waitForSelector("h2:has-text('LOGIN')", new Page.WaitForSelectorOptions().setTimeout(100));
+        // Email and password
+        page.fill("input[type='email']", "auth-test@example.com");
+        page.fill("input[type='password']", "password123");
+        page.click("button[type='submit']");
+        // Wait
+        page.waitForTimeout(100);
+        boolean loggedIn = page.url().contains("/home") || page.isVisible(".nav-brand:has-text('GameRent')");
+        assertTrue(loggedIn, "User must go to home after login");
+    }
 }

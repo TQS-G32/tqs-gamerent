@@ -6,6 +6,7 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -25,6 +26,9 @@ class PlaywrightBookingsIT {
 
     @Autowired
     private BookingRepository bookingRepository;
+
+    @Autowired
+    private BCryptPasswordEncoder passwordEncoder;
 
     private static Playwright playwright;
     private static Browser browser;
@@ -50,6 +54,7 @@ class PlaywrightBookingsIT {
             User owner = new User();
             owner.setName("Booking Owner");
             owner.setEmail("booking-owner@test.com");
+            owner.setPassword(passwordEncoder.encode("password123"));  // Hash password with BCrypt
             owner.setRole("OWNER");
             userRepository.save(owner);
 
@@ -161,5 +166,35 @@ class PlaywrightBookingsIT {
                 "Should have link to login page"
             );
         }
+    }
+
+    @Test
+    void testUserCanBookItem() {
+        String baseUrl = "http://localhost:3000";
+        // Login
+        page.navigate(baseUrl + "/auth");
+        page.fill("input[type='email']", "booking-owner@test.com");
+        page.fill("input[type='password']", "password123");
+        page.click("button[type='submit']");
+        page.waitForTimeout(2000);
+
+        // Select item
+        page.navigate(baseUrl + "/");
+        page.waitForSelector(".item-card", new Page.WaitForSelectorOptions().setTimeout(5000));
+        page.click(".item-card");
+        page.waitForSelector("input[type='date']", new Page.WaitForSelectorOptions().setTimeout(5000));
+
+        // Use locator.first() and locator.last() to fill each date input correctly
+        java.time.LocalDate startDate = java.time.LocalDate.now().plusDays(100);
+        java.time.LocalDate endDate = startDate.plusDays(5);
+        
+        Locator dateInputs = page.locator("input[type='date']");
+        dateInputs.first().fill(startDate.toString());
+        dateInputs.last().fill(endDate.toString());
+        page.waitForTimeout(500);
+
+        // Verify the button is no longer disabled
+        Locator bookButton = page.locator("button:has-text('Request Booking')");
+        assertFalse(bookButton.isDisabled(), "Request Booking button should be enabled when valid dates are selected");
     }
 }
