@@ -8,6 +8,8 @@ import Home from "./pages/Home.jsx";
 import ItemDetails from "./pages/ItemDetails.jsx";
 import PostItem from "./pages/PostItem.jsx";
 import UserProfile from "./pages/UserProfile.jsx";
+import Chats from "./pages/Chats.jsx";
+import ChatWindow from "./pages/ChatWindow.jsx";
 
 function NavBar({ user }) {
   const [query, setQuery] = useState("");
@@ -36,6 +38,7 @@ function NavBar({ user }) {
         <div className="nav-actions">
             <Link to="/bookings" className="nav-link">My Items</Link>
             <Link to="/disputes" className="nav-link">Disputes</Link>
+            {currentUser && <Link to="/chats" className="nav-link">Messages</Link>}
             <Link to="/post-item" className="btn btn-primary">Rent your gear</Link>
             {currentUser ? (
               <>
@@ -109,6 +112,8 @@ export default function App() {
         <Route path="/member/:id" element={<UserProfile />} />
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/disputes" element={<Disputes />} />
+        <Route path="/chats" element={<Chats />} />
+        <Route path="/chats/:chatId" element={<ChatWindow />} />
         <Route path="/auth" element={<AuthPage onAuth={handleAuth} />} />
         <Route path="/admin" element={user && user.role === 'ADMIN' ? <AdminDashboard /> : <div style={{padding:'2rem',color:'red'}}>Access denied</div>} />
       </Routes>

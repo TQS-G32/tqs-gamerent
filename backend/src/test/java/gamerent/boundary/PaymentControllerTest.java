@@ -22,10 +22,10 @@ class PaymentControllerTest {
     @Test
     @XrayTest(key = "PAY-UNIT-12")
     @Tag("unit")
-    void createCheckoutSession_ShouldUseOriginHeader_WhenPresent() throws Exception {
-        PaymentService paymentService = mock(PaymentService.class);
-        when(paymentService.createCheckoutSession(eq(10L), eq(99L), eq("http://origin.test")))
-                .thenReturn(new StripeCheckoutSession("cs_test_123", "https://stripe.test/checkout", "unpaid", "pi_test_123", 1234L));
+        void createCheckoutSession_ShouldUseOriginHeader_WhenPresent() throws Exception {
+                PaymentService paymentService = mock(PaymentService.class);
+                when(paymentService.createCheckoutSession(10L, 99L, "http://origin.test"))
+                                .thenReturn(new StripeCheckoutSession("cs_test_123", "https://stripe.test/checkout", "unpaid", "pi_test_123", 1234L));
 
         PaymentController controller = new PaymentController(paymentService, "http://fallback.test");
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller).build();
@@ -43,10 +43,10 @@ class PaymentControllerTest {
     @Test
     @XrayTest(key = "PAY-UNIT-13")
     @Tag("unit")
-    void createCheckoutSession_ShouldFallbackToConfiguredBaseUrl_WhenOriginMissing() throws Exception {
-        PaymentService paymentService = mock(PaymentService.class);
-        when(paymentService.createCheckoutSession(eq(10L), eq(99L), eq("http://fallback.test")))
-                .thenReturn(new StripeCheckoutSession("cs_test_123", "https://stripe.test/checkout", "unpaid", "pi_test_123", 1234L));
+        void createCheckoutSession_ShouldFallbackToConfiguredBaseUrl_WhenOriginMissing() throws Exception {
+                PaymentService paymentService = mock(PaymentService.class);
+                when(paymentService.createCheckoutSession(10L, 99L, "http://fallback.test"))
+                                .thenReturn(new StripeCheckoutSession("cs_test_123", "https://stripe.test/checkout", "unpaid", "pi_test_123", 1234L));
 
         PaymentController controller = new PaymentController(paymentService, "http://fallback.test");
         MockMvc mvc = MockMvcBuilders.standaloneSetup(controller).build();
@@ -57,7 +57,7 @@ class PaymentControllerTest {
                         .content("{\"bookingId\":10}"))
                 .andExpect(status().isOk());
 
-        verify(paymentService, times(1)).createCheckoutSession(eq(10L), eq(99L), eq("http://fallback.test"));
+        verify(paymentService, times(1)).createCheckoutSession(10L, 99L, "http://fallback.test");
     }
 
     @Test

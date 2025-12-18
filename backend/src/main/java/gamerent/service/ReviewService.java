@@ -18,7 +18,6 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
 
 @Service
 public class ReviewService {
@@ -84,14 +83,14 @@ public class ReviewService {
         return reviewRepository.findByTargetTypeAndTargetId(ReviewTargetType.ITEM, itemId)
                 .stream()
                 .map(this::toResponse)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public List<ReviewResponse> getReviewsForUser(Long userId) {
         return reviewRepository.findByTargetTypeAndTargetId(ReviewTargetType.USER, userId)
                 .stream()
                 .map(this::toResponse)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private void validateRequiredFields(Review review) {

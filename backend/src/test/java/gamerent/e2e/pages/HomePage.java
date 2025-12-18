@@ -14,13 +14,27 @@ public class HomePage {
     }
 
     public void search(String query) {
-        // Updated selector for new Vinted-style navbar search
-        page.fill(".nav-search input", query);
-        page.press(".nav-search input", "Enter");
+        page.fill(".nav-search input[type='text']", query);
+        page.press(".nav-search input[type='text']", "Enter");
     }
 
     public void selectFirstItem() {
-        // Updated selector for new item card structure
         page.click(".item-card:first-child");
+    }
+
+    public void clickCategory(String category) {
+        page.click("button:has-text('" + category + "')");
+    }
+
+    public void clickRentableFilter() {
+        page.click("button:has-text('Rentable')");
+    }
+
+    public boolean hasItems() {
+        return page.locator(".item-card").count() > 0;
+    }
+
+    public boolean hasNoItemsMessage() {
+        return page.isVisible("text=No items found");
     }
 }

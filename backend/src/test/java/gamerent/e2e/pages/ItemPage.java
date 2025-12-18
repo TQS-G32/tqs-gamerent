@@ -22,4 +22,32 @@ public class ItemPage {
     public boolean hasBookingControls() {
         return page.isVisible("button:has-text('Request Booking')") || page.isVisible("input[type=date]");
     }
+
+    public boolean hasItemDetails() {
+        return page.locator("h1").count() > 0;
+    }
+
+    public boolean hasOwnerCard() {
+        return page.isVisible("text=Member for");
+    }
+
+    public boolean hasAvailableRentalsSection() {
+        return page.isVisible("text=📋 Available Rentals");
+    }
+
+    public void clickSaveSettings() {
+        page.click("button:has-text('💾 Save Changes')");
+    }
+
+    public boolean hasOwnerConfiguration() {
+        return page.isVisible("text=⚙️ Configure Your Listing");
+    }
+
+    public void toggleAvailableForRent() {
+        page.click("input[type='checkbox']");
+    }
+
+    public boolean hasSuccessMessage() {
+        return page.isVisible("text=✓");
+    }
 }

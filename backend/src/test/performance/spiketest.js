@@ -1,5 +1,5 @@
-import http from 'k6/http';
 import { check, sleep } from 'k6';
+import http from 'k6/http';
 
 // Spike test: sudden load increase
 export const options = {
@@ -15,5 +15,12 @@ export const options = {
 const BASE_URL = 'http://localhost:8081';
 
 export default function () {
+  const response = http.get(`${BASE_URL}/api/items/catalog?page=0`);
+  
+  check(response, {
+    'status is 200': (r) => r.status === 200,
+    'response time < 1s': (r) => r.timings.duration < 1000,
+  });
 
+  sleep(1);
 }

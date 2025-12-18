@@ -260,13 +260,15 @@ export default function ItemDetails() {
                       <div 
                         key={rental.id}
                         onClick={() => setSelectedRental(rental)}
+                        className="rental-item"
                         style={{
                           padding: '12px',
                           borderRadius: '6px',
                           border: selectedRental?.id === rental.id ? '2px solid var(--primary)' : '1px solid #ddd',
                           background: selectedRental?.id === rental.id ? '#f0fcfd' : '#f9f9f9',
                           cursor: 'pointer',
-                          transition: 'all 0.2s'
+                          transition: 'all 0.2s',
+                          position: 'relative'
                         }}
                       >
                         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
@@ -296,6 +298,66 @@ export default function ItemDetails() {
                             {selectedRental?.id === rental.id ? '✓' : ''}
                           </div>
                         </div>
+                        {/* Chat button - always visible and small */}
+                        {!ownerMode && currentUser && (
+                          <button 
+                            className="rental-chat-button"
+                            onClick={async (e) => {
+                              e.stopPropagation(); // Prevent selecting the rental
+                              try {
+                                const res = await fetch('/api/chats', {
+                                  method: 'POST',
+                                  credentials: 'include',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ itemId: item.id, initialMessage: null })
+                                });
+                                if (res.ok) {
+                                  const chat = await res.json();
+                                  navigate(`/chats/${chat.id}`);
+                                } else if (res.status === 401) {
+                                  setShowLoginPrompt(true);
+                                } else {
+                                  const error = await res.text();
+                                  alert(error || 'Failed to start chat');
+                                }
+                              } catch (error) {
+                                console.error('Error starting chat:', error);
+                                alert('Failed to start chat');
+                              }
+                            }}
+                            style={{
+                              position: 'absolute',
+                              top: '8px',
+                              right: '8px',
+                              padding: '6px 10px',
+                              background: 'linear-gradient(135deg, #ff6b35 0%, #ff8c42 100%)',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '16px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              boxShadow: '0 2px 6px rgba(255, 107, 53, 0.3)',
+                              zIndex: 10,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 107, 53, 0.5)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = '0 2px 6px rgba(255, 107, 53, 0.3)';
+                            }}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M20 2H4C2.9 2 2.01 2.9 2.01 4L2 22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM18 14H6V12H18V14ZM18 11H6V9H18V11ZM18 8H6V6H18V8Z" fill="currentColor"/>
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
