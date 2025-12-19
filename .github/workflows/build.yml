@@ -14,21 +14,6 @@ jobs:
     name: Build and analyze
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_DB: gamerent_db
-          POSTGRES_USER: admin
-          POSTGRES_PASSWORD: secret
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,23 +27,15 @@ jobs:
           cache: maven
           cache-dependency-path: 'backend/pom.xml'
 
-      - name: Wait for PostgreSQL to be ready
-        run: |
-          until pg_isready -h localhost -p 5432 -U admin; do
-            echo "Waiting for PostgreSQL..."
-            sleep 1
-          done
+      - name: Create .env file
+        run: echo "${{ secrets.ENV_FILE }}" > .env
+
+      - name: Start services with docker compose
+        run: docker compose up -d
 
       - name: Build and analyze
         working-directory: ./backend
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
-          IGDB_CLIENT_ID: ${{ secrets.IGDB_CLIENT_ID }}
-          IGDB_AUTH_TOKEN: ${{ secrets.IGDB_AUTH_TOKEN }}
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/gamerent_db
-          SPRING_DATASOURCE_USERNAME: admin
-          SPRING_DATASOURCE_PASSWORD: secret
-          SPRING_DATASOURCE_DRIVER: org.postgresql.Driver
-          SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
-        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=TQS-G32_tqs-gamerent -Dspring.profiles.active=test -Dtest='!**/Playwright*'
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=TQS-G32_tqs-gamerent -Dspring.profiles.active=test
