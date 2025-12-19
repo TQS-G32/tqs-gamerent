@@ -20,7 +20,7 @@ jobs:
         run: echo "${{ secrets.ENV_FILE }}" > .env
 
       - name: Stop and clean Docker containers
-        run: docker-compose down -v || true
+        run: docker-compose down || true
 
       - name: Rebuild and restart Docker containers
         run: docker-compose up --build -d
