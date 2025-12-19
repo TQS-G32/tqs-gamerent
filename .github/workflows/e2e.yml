@@ -33,16 +33,4 @@ jobs:
 
       - name: Run E2E tests
         working-directory: ./backend
-        env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/gamerent_db
-          SPRING_DATASOURCE_USERNAME: admin
-          SPRING_DATASOURCE_PASSWORD: secret
-          SPRING_DATASOURCE_DRIVER: org.postgresql.Driver
-          SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
-          IGDB_CLIENT_ID: ${{ secrets.IGDB_CLIENT_ID }}
-          IGDB_AUTH_TOKEN: ${{ secrets.IGDB_AUTH_TOKEN }}
-        run: mvn verify -Dspring.profiles.active=e2e -Dtest='**/Playwright*'
-
-      - name: Stop services
-        if: always()
-        run: docker compose down
+        run: mvn test -Dtest='**/Playwright*'
