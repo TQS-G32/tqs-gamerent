@@ -61,4 +61,4 @@ jobs:
           SPRING_DATASOURCE_PASSWORD: secret
           SPRING_DATASOURCE_DRIVER: org.postgresql.Driver
           SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
-        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=TQS-G32_tqs-gamerent -Dspring.profiles.active=test -Dtest='!**/Playwright*'
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=TQS-G32_tqs-gamerent -Dspring.profiles.active=test
