@@ -31,20 +31,6 @@ jobs:
       - name: Start services with docker compose
         run: docker compose up -d
 
-      - name: Wait for services to be ready
-        run: |
-          for i in {1..60}; do
-            if curl -f http://localhost:8080/api/items 2>/dev/null && curl -f http://localhost:3000 2>/dev/null; then
-              echo "All services are ready"
-              exit 0
-            fi
-            echo "Waiting for services... ($i/60)"
-            sleep 2
-          done
-          echo "Services failed to start"
-          docker compose logs
-          exit 1
-
       - name: Run E2E tests
         working-directory: ./backend
         env:
